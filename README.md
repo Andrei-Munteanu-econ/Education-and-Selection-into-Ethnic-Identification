@@ -71,7 +71,9 @@ SIRUTA codes (Romania's standard locality classification system) and census nome
 
 ### Software
 
-- **R** version 4.3 or later (tested on R 4.x)
+- **R** version 4.3 or later. The results in the paper were produced with **R 4.4.2 (2024-10-31)** on Ubuntu 24.04.1 LTS (x86_64-pc-linux-gnu), run via RStudio on the Harvard FASRC (FAS Research Computing) cluster.
+
+The exact package versions used to produce the results are listed at the end of this README (see "Package Versions").
 
 The following packages are loaded by `code/main.R` via `pacman::p_load()`:
 
@@ -94,7 +96,19 @@ The following packages are loaded by `code/main.R` via `pacman::p_load()`:
 | `triangle`, `GA`, `quadprog` | Structural model estimation |
 | `doParallel`, `foreach` | Parallel computing (structural model) |
 
+### Controlled Randomness
+
+Random seeds are set wherever results depend on simulation or bootstrap resampling, so all reported results are exactly reproducible:
+
+- **Structural model** (`code/05 Structural model estimation/00_main_structural.R`): `set.seed(1)` (line 378) fixes the random draws used throughout estimation; `set.seed(j)` (line 406) re-seeds each bootstrap iteration `j`. The parallel estimation scripts (`01_estimate_model_het_parallel*.R`) likewise seed each bootstrap iteration by its index.
+- **Bootstrapped scatterplots** re-seed each bootstrap iteration `i`:
+  - `code/01 Figure 01 A04 A05 A06 scatterplots/Figure 01 and A04 A05 A06 scatterplots.R` (lines 165 and 466)
+  - `code/AA Figure A02 gender-adjusted scatterplot/Figure A02.R` (lines 250 and 560)
+  - `code/AA Figure A03 household head scatterplot/Figure A03 household heads.R` (lines 198 and 510)
+
 ### Hardware Requirements
+
+The results in the paper were produced on the Harvard FASRC cluster using **20 cores and 150 GB RAM**.
 
 - **Reduced-form analysis** (data reading, cleaning, all main and appendix tables/figures except structural): standard desktop or laptop; 16 GB RAM recommended given the size of census microdata.
 - **Structural model estimation** (`code/05 Structural model estimation/`): requires a high-performance computing (HPC) cluster with parallel processing. Estimation scripts use `doParallel` with 20 parallel workers. Each distributional specification (normal, uniform, lognormal, triangle) runs bootstrap iterations across education levels. Analysis and figure scripts in Section 05 can use pre-computed `.rds` results files if available in `data/processed/results/`.
@@ -103,12 +117,15 @@ The following packages are loaded by `code/main.R` via `pacman::p_load()`:
 
 ### Estimated Runtime
 
+Timings below are for the FASRC environment (20 cores, 150 GB RAM). Most individual scripts run in under one minute; the exceptions are data cleaning, structural model estimation, and the bootstrapped scatter plots.
+
 | Component | Approximate Time | Hardware |
 |-----------|-----------------|---------|
-| Read raw census data (`00 read raw/`) | 30–60 min | Desktop, 16 GB RAM |
-| Clean and link data (`00 clean/`) | 30–60 min | Desktop, 16 GB RAM |
-| Reduced-form analysis (all other scripts) | 1–2 hours total | Desktop |
-| Structural model estimation (`05 Structural model estimation/`) | Several hours | HPC, 20+ cores |
+| Read raw census data (`00 read raw/`) | 30–60 min | FASRC (20 cores, 150 GB RAM) |
+| Clean and link data (`00 clean/`) | ~1 hour | FASRC (20 cores, 150 GB RAM) |
+| Scatter plots (`01 Figure 01 …`) | Several hours (bootstrapped standard errors) | FASRC (20 cores, 150 GB RAM) |
+| Reduced-form analysis (most other scripts) | Under 1 min each | FASRC (20 cores, 150 GB RAM) |
+| Structural model estimation (`05 Structural model estimation/`) | Several hours | FASRC (20 cores, 150 GB RAM) |
 
 ---
 
@@ -191,7 +208,7 @@ Estimation scripts require an HPC environment. If pre-computed results (`.rds` f
    - Survey data: `data/raw/survey/`
    - Shapefiles: `data/raw/shapefiles/`
 
-3. **Update working directory paths** in `code/main.R`. Replace the `wd` and `wd_data_raw` variables (lines 30–31) with the local path to the `replication_final/` folder and the raw data directory, respectively. All other paths are constructed from `wd` and do not need modification.
+3. **Update working directory paths** in `code/main.R`. Replace the `wd` and `wd_data_raw` variables (lines 41 and 43) with the local path to the `replication_final/` folder and the raw data directory, respectively. All other paths are constructed from `wd` and do not need modification.
 
 4. **Adjust thread count** in `code/functions.R`: set `setDTthreads(threads=N)` to match available cores on the local machine.
 
@@ -244,6 +261,8 @@ Estimation scripts require an HPC environment. If pre-computed results (`.rds` f
 | Share with no reported ethnicity (2011) | `code/AA text/text percent with no reported ethnicity in 2011.R` |
 | Share of male household heads | `code/AA text/text share of male hh heads.R` |
 
+*Only the first script writes a file (`output/text easy to identify Roma.tex`); the other three print their statistics to the console.*
+
 ---
 
 ## List of Figures and Programs
@@ -274,3 +293,48 @@ Estimation scripts require an HPC environment. If pre-computed results (`.rds` f
 ## References
 
 Mitrut, Andreea, Gabriel Kreindler, Margareta Matache, Andrei Munteanu, and Cristian Pop-Eleches. "Education and Selection into Ethnic Identification: Evidence from Roma People in Romania." *American Economic Journal: Applied Economics* (forthcoming).
+
+---
+
+## Package Versions
+
+The results in the paper were produced with **R 4.4.2** on the Harvard FASRC cluster (20 cores, 150 GB RAM) via RStudio. The following package versions were loaded (from `sessionInfo()`):
+
+| Package | Version |
+|---------|---------|
+| data.table | 1.18.4 |
+| fixest | 0.12.1 |
+| xtable | 1.8-4 |
+| patchwork | 1.3.0 |
+| modelsummary | 2.6.0 |
+| MASS | 7.3-64 |
+| haven | 2.5.4 |
+| foreign | 0.8-88 |
+| dplyr | 1.1.4 |
+| kableExtra | 1.4.0 |
+| ggplot2 | 3.5.1 |
+| ggh4x | 0.3.0 |
+| gridExtra | 2.3 |
+| scales | 1.3.0 |
+| cowplot | 1.1.3 |
+| effects | 4.2-2 |
+| carData | 3.0-5 |
+| sf | 1.0-19 |
+| maps | 3.4.2.1 |
+| ggrepel | 0.9.6 |
+| tidyverse | 2.0.0 |
+| tibble | 3.2.1 |
+| tidyr | 1.3.1 |
+| readr | 2.1.5 |
+| purrr | 1.0.4 |
+| stringr | 1.5.1 |
+| forcats | 1.0.0 |
+| lubridate | 1.9.4 |
+| DescTools | 0.99.59 |
+| corrplot | 0.95 |
+| triangle | 1.0 |
+| GA | 3.2.4 |
+| foreach | 1.5.2 |
+| iterators | 1.0.14 |
+| quadprog | 1.5-8 |
+| Hmisc | 5.2-2 |
