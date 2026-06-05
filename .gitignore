@@ -1,0 +1,18 @@
+# Confidential microdata — never commit
+data/
+
+# Backup code folders
+code/*/bkp/
+
+# R artifacts
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+
+# Temp files
+*.tmp
+*.tmp.*
+
+# Claude Code internal instructions (not part of the replication package)
+CLAUDE.md

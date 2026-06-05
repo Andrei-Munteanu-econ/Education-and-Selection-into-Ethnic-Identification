@@ -1,0 +1,497 @@
+---
+title: "Roma Structural Model: No Misreport"
+author: "Andrei Munteanu"
+date: "12/12/2023"
+output:
+html_document:
+fig_width: 8 
+fig_height: 8 
+editor_options: 
+  chunk_output_type: inline
+---
+  
+  <style type="text/css">
+  .main-container {
+    max-width: 1800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+</style>
+```{r options, include=FALSE, echo=FALSE, cache=FALSE,results='hide'}
+knitr::opts_knit$set(root.dir=getwd())
+knitr::opts_chunk$set(cache.lazy=FALSE,cache=TRUE,warning=FALSE,echo=TRUE,comment='',prompt=T)
+options(modelsummary_format_numeric_latex='plain')
+knitr::opts_template$set(
+  regular=list(include=TRUE,echo=FALSE,cache=FALSE,warning=FALSE,message=FALSE,results = "asis"),
+  regular_cache=list(include=TRUE,echo=TRUE,cache=TRUE,warning=FALSE,message=FALSE),
+  invisible=list(include=FALSE,echo=FALSE,cache=FALSE,warning=FALSE,results=FALSE,message=FALSE),
+  muted=list(include=TRUE,echo=TRUE,cache=FALSE,warning=FALSE,results=FALSE,message=FALSE),
+  latex=list(include=TRUE,echo=TRUE,cache=FALSE))
+options(knitr.kable.NA = 0)  
+
+setwd(wd_data_structural)
+results_all<-readRDS("results_parallel_triangle.rds")
+results_all<-results_all %>%
+    mutate(Education=case_when(id==0 ~ "None",
+                             id==4 ~ "Primary",
+                             id %in% 8:10  ~ "Middle School",
+                             id %in% 12:13 ~ "High School",
+                             id %in% 14:16 ~ "Postsec")) %>%
+  mutate(Education=factor(Education,levels=c("None","Primary","Middle School","High School","Postsec"))) %>%
+  # mutate(Education=factor(Education,levels=c("None","Primary School","Middle School","High School or Vocational","Post- Secondary"))) 
+     # mutate(Education=case_when(id==0 ~ "None",
+     #                          id==4 ~ "GS",
+     #                          id %in% 8:10  ~ "MS",
+     #                          id %in% 12:13 ~ "HS",
+     #                          id %in% 14:16 ~ "Postsec")) %>%
+   # mutate(Education=factor(Education,levels=c("None","GS","MS","HS","Postsec"))) %>%
+   mutate(educ=as.numeric(as.character(id)))
+```
+
+
+
+```{r, opts.label='invisible'}
+results_sum<-results_all %>%
+  group_by(id,Education,educ) %>%
+  summarise(pr_05=quantile(pr, probs = 0.05),pr_95=quantile(pr, probs = 0.95),pr=mean(pr,na.rm=T),
+            d0_05=quantile(d0, probs = 0.05),d0_95=quantile(d0, probs = 0.95),d0=mean(d0,na.rm=T),
+            d1_05=quantile(d1, probs = 0.05),d1_95=quantile(d1, probs = 0.95),d1=mean(d1,na.rm=T),
+            d2_05=quantile(d2, probs = 0.05),d2_95=quantile(d2, probs = 0.95),d2=mean(d2,na.rm=T),
+            # sigma_05=quantile(sigma, probs = 0.05),sigma_95=quantile(sigma, probs = 0.95),sigma=mean(sigma,na.rm=T),
+            # mu_05=quantile(mu, probs = 0.05),mu_95=quantile(mu, probs = 0.95),mu_1=mean(mu,na.rm=T)
+            pr_obs=mean(pr_obs),
+            n=mean(n)
+            )  %>%
+  mutate(d2_05=pr_obs/pr_95,d2_95=pr_obs/pr_05,d2=pr_obs/pr) %>%
+  arrange(educ)
+```
+## Results {.tabset}
+### Estimated Roma Proportion by Education
+```{r, opts.label='regular'}
+ggplot(results_sum,aes(x=Education,y=pr))+
+  geom_point()+
+  geom_errorbar(aes(ymin=pr_05,ymax=pr_95),width=0.1)+
+  theme(strip.text.x = element_text(size=18),
+        axis.text.x=element_text(angle = 0, vjust=0.5,size=14),
+        axis.text.y = element_text(size=14),  
+        axis.title.x = element_text(size=18),
+        axis.title.y = element_text(size=18),
+        legend.title=element_text(size=18),
+        legend.text=element_text(size=18))+
+  xlab("Years of Schooling (2011)")+
+  ylab("Proportion Roma")+
+  # scale_x_continuous(breaks=0:10)+
+  scale_y_continuous(breaks=seq(from = 0, to = 1, by = 0.05),labels=function(x) format(x, big.mark = ",", scientific = FALSE))+
+   scale_x_discrete(labels = function(x) str_wrap(x, width = 8))+
+  labs(color=str_wrap("Proportion",width=10))
+```
+
+### Estimated Roma Passing by Education
+```{r, opts.label='regular'}
+g1<-ggplot(results_sum,aes(x=Education,y=d2))+
+  geom_point()+
+  geom_errorbar(aes(ymin=d2_05,ymax=d2_95),width=0.1)+
+  theme(strip.text.x = element_text(size=18),
+        axis.text.x=element_text(angle = 0, vjust=0.5,size=14),
+        axis.text.y = element_text(size=14),  
+        axis.title.x = element_text(size=14),
+        axis.title.y = element_text(size=14),
+        legend.title=element_text(size=14),
+        legend.text=element_text(size=14))+
+  xlab("Educational Attainment")+
+  ylab("Report Roma")+
+  # scale_x_continuous(breaks=0:10)+
+  scale_y_continuous(breaks=seq(from = 0, to = 1, by = 0.1),
+                     minor_breaks = seq(from = 0, to = 1, by = 0.1),
+                     # labels=function(x) format(x, big.mark = ",", scientific = FALSE))+
+                     labels = scales::percent,
+                     limits = c(0, 1))+
+  scale_x_discrete(labels = function(x) str_wrap(x, width =8))+
+  labs(color=str_wrap("Proportion",width=8))
+
+g1
+
+g1b<-ggplot(results_sum,aes(x=Education,y=1/d2))+
+  geom_point()+
+  geom_errorbar(aes(ymin=1/d2_05,ymax=1/d2_95),width=0.1)+
+  theme(strip.text.x = element_text(size=18),
+        axis.text.x=element_text(angle = 0, vjust=0.5,size=14),
+        axis.text.y = element_text(size=14),  
+        axis.title.x = element_text(size=14),
+        axis.title.y = element_text(size=14),
+        legend.title=element_text(size=14),
+        legend.text=element_text(size=14))+
+  xlab("Educational Attainment")+
+  ylab("Actual/Observed Roma")+
+  # scale_x_continuous(breaks=0:10)+
+  scale_y_continuous(breaks=seq(from = 0, to = 20, by = 1),
+                     minor_breaks = seq(from = 0, to = 20, by = 1)
+                     # labels=function(x) format(x, big.mark = ",", scientific = FALSE))+
+                     # labels = scales::percent,
+                    )+
+  scale_x_discrete(labels = function(x) str_wrap(x, width =8))+
+  expand_limits(y=0)+
+  labs(color=str_wrap("Underreport",width=8))
+
+g1b
+
+setwd(wd_output)
+pdf("05_Figure_structural_passing_triangle.pdf",width=8,height=5)
+g1
+dev.off()
+
+setwd(wd_output)
+pdf("05_Figure_structural_passing_triangle.pdf",width=8,height=5)
+g1b
+dev.off()
+
+```
+
+
+### Estimated Roma Underreport Rate by Education (using pr)
+```{r, opts.label='regular'}
+ggplot(results_sum,aes(x=Education,y=1/d2))+
+  geom_point()+
+  geom_errorbar(aes(ymin=1/d2_05,ymax=1/d2_95),width=0.1)+
+  theme(strip.text.x = element_text(size=18),
+        axis.text.x=element_text(angle = 0, vjust=0.5,size=14),
+        axis.text.y = element_text(size=14),  
+        axis.title.x = element_text(size=18),
+        axis.title.y = element_text(size=18),
+        legend.title=element_text(size=18),
+        legend.text=element_text(size=18))+
+  xlab("Years of Schooling (2011)")+
+  ylab("Underreport Rate (2011)")+
+  # scale_x_continuous(breaks=0:10)+
+  scale_y_continuous(breaks=seq(from = 0, to = 20, by = 1),labels=function(x) format(x, big.mark = ",", scientific = FALSE))+
+  expand_limits(y=0)+
+    scale_x_discrete(labels = function(x) str_wrap(x, width = 8))+
+  labs(color=str_wrap("Proportion",width=8))
+
+ 
+```
+
+
+
+### Estimated Total Roma in Population (Extrapolation)
+```{r, opts.label='regular'}
+
+
+data_all_2011<-data_all_2011 %>%
+  filter(EDUC!="Sub 10" & AA<=1992) %>%
+  mutate(educ=case_when(EDUC=="No formal" ~ 0,
+                          EDUC=="Primary" ~ 4,
+                          EDUC=="Gym" ~ 8,
+                          EDUC=="Higher Long" ~ 16,
+                          EDUC=="Sub 10" ~ NA_real_,
+                          TRUE ~ 12))
+
+educ_2011_eth<-data_all_2011 %>%
+  # filter(EDUC!="Sub 10" & AA<=1992) %>%
+  group_by(ROMA) %>%
+  summarise(educ=mean(educ,na.rm=T))
+
+# data_all_2011<-data_all_2011 %>%
+#     mutate(educ=case_when(EDUC=="Sub 10" & ROMA==T ~ 8,
+#                             EDUC=="Sub 10" & ROMA==F ~ 4,
+#                           TRUE ~ educ))
+  
+  
+
+# data_all_2011_sum<-data_all_2011 %>%
+#   filter( EDUC!="Sub 10") %>%
+#   left_join(results_sum %>% select(educ,Education,matches("pr"))) %>%
+#   group_by(educ,Education,pr_05,pr_95,pr) %>%
+#   summarise(n=n(),n_ROMA=sum(ROMA==T)) %>%
+#   mutate(pr=pr,pr_high=pr_95,pr_low=pr_05) %>%
+#   mutate(n_mid=pr*n,n_low=pr_low*n,n_high=pr_high*n)
+
+data_all_2011_sum<-data_all_2011 %>%
+  # filter( EDUC!="Sub 10") %>%
+  # filter(AA<=1992) %>%
+  left_join(results_sum %>%   
+              dplyr::select(id,educ,Education,matches("d2"),matches("pass")))
+
+data_all_2011_sum2<-data_all_2011_sum %>%
+  group_by(educ,Education,d2_05,d2_95,d2) %>%
+  summarise(n=n(),n_ROMA=sum(ROMA==T)) %>%
+  mutate(pr=1/d2,pr_high=1/d2_95,pr_low=1/d2_05) %>%
+  mutate(n_mid=n_ROMA/d2,n_low=n_ROMA/d2_95,n_high=n_ROMA/d2_05)
+
+data_all_2011_sum_long<-data_all_2011_sum2 %>%
+  pivot_longer(cols=c(n_mid,n_ROMA)) %>%
+  mutate(n_low=ifelse(name=="n_ROMA",NA,n_low),
+         n_high=ifelse(name=="n_ROMA",NA,n_high),
+         name=ifelse(name=="n_ROMA","Self-Reported","Estimated")) 
+
+totals<-data_all_2011_sum_long %>%
+  group_by(name) %>%
+  summarise(n=sum(value)) 
+
+data_all_2011_sum_long<-data_all_2011_sum_long %>%
+  mutate(name=case_when(name=="Self-Reported" ~ 
+                          paste0("Self-Reported: ",
+                          f_dec(totals$n[totals$name=='Self-Reported']/1000000), " mil."),
+                        name=="Estimated" ~ 
+                          paste0("Estimated: ",
+                          f_dec(totals$n[totals$name=='Estimated']/1000000), " mil.") 
+                     )) 
+
+data_all_2011_sum_long<-data_all_2011_sum_long %>%
+  mutate(name=factor(name,
+         levels=rev(sort(unique(data_all_2011_sum_long$name)))))
+  
+
+
+g2<-ggplot(data_all_2011_sum_long,aes(x=Education,y=value,color=name))+
+  geom_point()+
+  # geom_point(aes(x=educ,y=n_ROMA,color="red"))+
+  geom_errorbar(aes(ymin=n_low,ymax=n_high),width=0.1)+
+  theme(strip.text.x = element_text(size=18),
+        axis.text.x=element_text(angle = 0, vjust=0.5,size=14),
+        axis.text.y = element_text(size=14),  
+        axis.title.x = element_text(size=14),
+        axis.title.y = element_text(size=14),
+        # legend.title=element_text(size=14),
+        legend.title=element_blank(),
+        legend.text=element_text(size=10),
+        legend.position=c(.75,.85),
+        legend.title.align=0.5)+
+  xlab("Educational Attainment")+
+  ylab("Number of Roma Adults (Million)")+
+  # scale_x_continuous(breaks=0:10)+
+    scale_x_discrete(labels = function(x) str_wrap(x, width = 8))+
+  scale_y_continuous(breaks=seq(from = 0, to = 1000000, by = 100000),
+                     labels=unit_format(unit = "", scale = 1e-6,accuracy=0.1),
+                     )+
+  labs(color=str_wrap("Roma",width=10))
+g2
+
+setwd(wd_output)
+pdf("05_Figure_structural_population_triangle.pdf",width=10,height=5)
+g2
+dev.off()
+
+setwd(wd_output)
+pdf("05_Figure_structural_combined_3_triangle.pdf",width=12,height=8)
+grid.arrange(g1, g1b, g2, ncol=3,widths = c(1/3,1/3,1/3))
+dev.off()  
+
+setwd(wd_output)
+pdf("05_Figure_structural_combined_2_triangle.pdf",width=10,height=5)
+grid.arrange(g1b, g2,  ncol=2,widths = c(1/2,1/2))
+dev.off()  
+
+summary<-data_all_2011_sum2 %>%
+  ungroup %>%
+  summarise(
+            n_observed=sum(n_ROMA,na.rm = T),
+           n_actual_p05=sum(n_low,na.rm = T),
+            n_actual_mean=sum(n_mid,na.rm = T),
+             n_actual_p95=sum(n_high,na.rm = T),
+           underreport=(n_actual_mean/n_observed-1)*100,
+           prop_observed=n_observed/sum(n,na.rm = T)*100,
+           prop_actual=n_actual_mean/sum(n,na.rm = T)*100,
+           prop_actual_p95=n_actual_p95/sum(n,na.rm = T)*100,
+           prop_actual_p05=n_actual_p05/sum(n,na.rm = T)*100
+            )
+
+sum(data_all_2011$ROMA==T)/(summary$n_observed/summary$n_actual_mean)
+
+summary_tab<-kable(summary %>% dplyr::select(-starts_with("prop")) ,digits=0, format.args = list(big.mark = ",")) %>%
+    kable_styling("striped", full_width = F) 
+
+summary_tab_perc<-kable(summary %>% dplyr::select(starts_with("prop")),digits=2, format.args = list(big.mark = ",")) %>%
+    kable_styling("striped", full_width = F) 
+
+summary_tab
+summary_tab_perc
+
+data_all_2011_sum2$n_ROMA-data_all_2011_sum2$n_mid
+
+```
+
+### Observed vs Real Years of Schooling
+```{r, opts.label='regular'}
+#Create data with
+# data_all_2011_sum_adult<-data_all_2011 %>%
+#   filter(EDUC!="Sub 10" & AA<=1992) %>%
+#   left_join(results_sum %>% select(educ,matches("pr"))) %>%
+#   group_by(educ,pr_05,pr_95,pr) %>%
+#   summarise(n=n(),n_ROMA=sum(ROMA==T)) %>%
+#   mutate(pr=pr,pr_high=pr_95,pr_low=pr_05) %>%
+#   mutate(n_mid=pr*n,n_low=pr_low*n,n_high=pr_high*n)
+
+data_all_2011_sum_adult<-data_all_2011 %>%
+  # filter(EDUC!="Sub 10" & AA<=1992) %>%
+  left_join(results_sum %>% dplyr::select(educ,matches("d2"))) %>%
+  group_by(educ,d2,d2_95,d2_05) %>%
+  summarise(n=n(),n_ROMA=sum(ROMA==T)) %>%
+  mutate(n_mid=n_ROMA/d2,n_low=n_ROMA/d2_95,n_high=n_ROMA/d2_05) %>%
+  mutate(n_95=ifelse(educ<=4,n_low,n_high),
+         n_05=ifelse(educ<=4,n_high,n_low))
+
+summary<-data_all_2011_sum_adult %>%
+  ungroup %>%
+  summarise(educ_observed=weighted.mean(educ,n_ROMA),
+            educ_actual_p05=weighted.mean(educ,n_05),
+            educ_actual_mean=weighted.mean(educ,n_mid),
+            educ_actual_p95=weighted.mean(educ,n_95),
+            educ_non_roma=weighted.mean(educ,n),
+            ) %>%
+  mutate(explained_gap=scales::percent((educ_actual_mean-educ_observed)/(educ_non_roma-educ_observed)),
+         increase=scales::percent((educ_actual_mean-educ_observed)/(educ_observed)))
+
+
+
+summary<-kable(summary,digits=2) %>%
+    kable_styling("striped", full_width = F) 
+
+
+
+summary
+```
+
+### 8th grade grads proportion
+```{r, opts.label='regular'}
+#Observed:
+grads_8_prop<-results_sum %>%
+  mutate(grade_8_grad=educ>=8) %>%
+  group_by(grade_8_grad) %>%
+  summarise(p_obs=sum(pr_obs*n),
+            p_act_mean=sum(pr*n),
+            p_act_05=sum(pr_05*n),
+            p_act_95=sum(pr_95*n)) %>%
+  ungroup() %>%
+  mutate(p_obs=p_obs/sum(p_obs),
+         p_act_mean=p_act_mean/sum(p_act_mean),
+         p_act_05=p_act_05/sum(p_act_05),
+         p_act_95=p_act_95/sum(p_act_95)) %>%
+  filter(grade_8_grad==T)
+
+summary<-kable(grads_8_prop,digits=2) %>%
+    kable_styling("striped", full_width = F) 
+summary
+```
+### 8th grade grads absolute
+```{r, opts.label='regular'}
+#Observed:
+grads_8_abs<-results_sum %>%
+    mutate(grade_8_grad=educ>=8) %>%
+  group_by(grade_8_grad) %>%
+  summarise(n_obs=sum(pr_obs*n),
+            n_act=sum(pr*n),
+            n_act_05=sum(pr_05*n),
+            n_act_95=sum(pr_95*n)) %>%
+  mutate(p_increase=n_act/n_obs-1,
+         p_increase_05=n_act_05/n_obs-1,
+         p_increase_95=n_act_95/n_obs-1)
+
+summary<-kable(grads_8_abs,digits=2) %>%
+    kable_styling("striped", full_width = F) 
+summary
+```
+
+### Fit Graph
+```{r, opts.label='regular'}
+#Observed:
+# data_fit<-results_all %>%
+#   group_by(Education) %>%
+#   summarise(across(matches("dist"),~mean(.*100),.names = "{col}_mean"),
+#            across(matches("dist") & !matches("mean"),~quantile(.*100, probs = 0.95),.names = "{col}_95"),
+#            across(matches("dist") & !matches("mean") & !matches("95"),~quantile(.*100, probs = 0.05),.names = "{col}_05")
+#            ) %>%
+#   rename_with(~ gsub("dist_m8","RRR",.), matches("m8")) %>%
+#   rename_with(~ gsub("dist_m7","RRN",.), matches("m7")) %>%
+#   rename_with(~ gsub("dist_m6","RNR",.), matches("m6")) %>%
+#   rename_with(~ gsub("dist_m5","RNN",.), matches("m5")) %>%
+#   rename_with(~ gsub("dist_m4","NRR",.), matches("m4")) %>%
+#   rename_with(~ gsub("dist_m3","NRN",.), matches("m3")) %>%
+#   rename_with(~ gsub("dist_m2","NNR",.), matches("m2")) %>%
+#   rename_with(~ gsub("dist_m1","NNN",.), matches("m1")) %>%
+#    pivot_longer(
+#     cols = ends_with("_mean") | ends_with("_95") | ends_with("_05"),
+#     names_to = c("Population", "metric"),
+#     names_pattern = "(.*)_(mean|95|05)"
+#   ) %>%
+#   pivot_wider(values_from = "value",names_from = "metric") 
+# 
+# # data_fit$Education <- str_wrap(data_fit$Education, width = 10)
+# 
+# g<-ggplot(data=data_fit,aes(x=Population,y=mean,group=Education,color=Education))+
+#   geom_point(position=position_dodge(width=0.5))+
+#   geom_errorbar(aes(ymin=`05`,ymax=`95`),width=0.5,position=position_dodge(width=0.5))+
+#   theme(strip.text.x = element_text(size=18),
+#         axis.text.x=element_text(angle = 0, vjust=0.5,size=14),
+#         axis.text.y = element_text(size=14),  
+#         axis.title.x = element_text(size=18),
+#         axis.title.y = element_text(size=18),
+#         legend.title=element_text(size=18),
+#         legend.text=element_text(size=18))+
+#   xlab("Self-Reporting History")+
+#   ylab("Deviation from Data Moments (pp)")+
+#   # scale_x_continuous(breaks=0:10)+
+#   #scale_y_continuous(breaks=seq(from = 0, to = 1, by = 0.05),labels=function(x) format(x, big.mark = ",", scientific = FALSE))+
+#    scale_x_discrete(labels = function(x) str_wrap(x, width = 8))+
+#   labs(color=str_wrap("Education",width=10))
+# 
+# setwd(wd_output)
+# pdf("05_Figure_structural_fit_triangle.pdf",width=10,height=5)
+# g
+# dev.off()  
+```
+
+### Fit Graph 2
+```{r, opts.label='regular'}
+#Observed:
+data_fit<-results_all %>%
+  group_by(Education) %>%
+  mutate(across(starts_with("dist_"), 
+                .fns = ~ .x + get(sub("dist_m", "m", cur_column())))) %>%
+   pivot_longer(
+    cols = starts_with("dist") | starts_with("m"),
+    names_to = c("Population", "metric"),
+    names_pattern = "(dist_m|m)(.*)"
+  )  %>%
+  mutate(metric=case_when(metric==1 ~ "NNN",
+                          metric==2 ~ "NNR",
+                          metric==3 ~ "NRN",
+                          metric==4 ~ "NRR",
+                          metric==5 ~ "RNN",
+                          metric==6 ~ "RNR",
+                          metric==7 ~ "RRN",
+                          metric==8 ~ "RRR"
+                          )) %>%
+  # filter(metric!="NNN")%>%
+  mutate(Panel=factor(ifelse(metric=="NNN","Never Roma","Other Moments"),
+                      levels=c("Other Moments","Never Roma"))) %>%
+  mutate(Population=ifelse(Population=="m","Data","Estimated")) %>%
+  pivot_wider(names_from="Population",values_from="value") %>%
+  rename(Population=metric)
+
+# data_fit$Education <- str_wrap(data_fit$Education, width = 10)
+
+g<-ggplot(data=data_fit,aes(x=Estimated,y=Data,group=Population,color=Population))+
+  facet_wrap(~ Panel,scales="free") +
+  geom_point()+
+  geom_abline(slope = 1, intercept = 0, color = "black") +
+  theme(strip.text.x = element_text(size=18),
+        axis.text.x=element_text(angle = 0, vjust=0.5,size=14),
+        axis.text.y = element_text(size=14),  
+        axis.title.x = element_text(size=18),
+        axis.title.y = element_text(size=18),
+        legend.title=element_text(size=18),
+        legend.text=element_text(size=18))+
+  xlab("Data Moments")+
+  ylab("Estimated Moments")+
+  # scale_x_continuous(breaks=0:10)+
+  #scale_y_continuous(breaks=seq(from = 0, to = 1, by = 0.05),labels=function(x) format(x, big.mark = ",", scientific = FALSE))+
+   # scale_x_discrete(labels = function(x) str_wrap(x, width = 8))+
+  labs(color=str_wrap("Moment",width=10))
+
+setwd(wd_output)
+pdf("05_Figure_structural_fit_triangle.pdf",width=10,height=5)
+g
+dev.off()  
+g
+```
