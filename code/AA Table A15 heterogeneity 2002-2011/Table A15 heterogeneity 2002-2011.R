@@ -1,73 +1,45 @@
 ###############################################################################
-# Script:  Table 2.R
-# Purpose: Build the heterogeneity table (Table 2) as a 3-panel LaTeX tabular,
-#          and a separate appendix table of ethnic identification by town size
-#          (Table A08, 6 columns, 1992-2011 and 2002-2011 samples).
-# Output:  - Table 02.tex   (3 panels: gender/parental educ; other individual &
-#                             family chars; age & hh head) -- 1992-2011 sample
-#          - Table A08.tex  (6 cols: <5k / 5k-50k / 50k+, by sample)
+# Script:  Table A15.R
+# Purpose: Build the 2002-2011 appendix counterpart of the heterogeneity table
+#          (Table A.15) as a 3-panel LaTeX tabular. This is the 2002-2011 version
+#          of the main-text Table 2; it mirrors the main script
+#          ('03 Table 02 A08 heterogeneity and town size/') but is run on the
+#          2002-2011 linked Roma sample only.
+# Output:  - Table A15.tex  (3 panels: gender/parental educ; other individual &
+#                             family chars; age & hh head) -- 2002-2011 sample
 # Note:    All models use the main IV strategy (instrument 2011 education with
 #          baseline education, FE = commune x birth-year + census) estimated on
-#          subgroups. The 3-panel table is built by build_het_table() on the
-#          1992-2011 (data_reg_92) linked Roma sample. The 2002-2011 counterpart
-#          (Table A15) is produced by the self-contained script in
-#          'AA Table A15 heterogeneity 2002-2011/'. The Roma-spouse split is
-#          deliberately omitted here; it is covered by the marriage tables
+#          subgroups. build_het_table() is an exact copy of the builder in the
+#          main Table 2 script, so the two tables share structure. The Roma-spouse
+#          split is deliberately omitted; it is covered by the marriage tables
 #          (Table 3 and Table A11).
 ###############################################################################
 
-# --- Load Linked Roma Samples ---
+# --- Load Linked Roma Sample (2002-2011) ---
 
 #load linked Roma data----
 setwd(wd_data_linked)
-filename<-'data_1992_2011_roma_unique.csv'
-# data_92: 1992-2011 linked Roma sample; each row is one individual matched
-# across the two censuses and identified as Roma in 1992.
-data_92<-read_sample(filename)
-data_92<-read_data(filename,data_92) %>%
-  # pop_1992: baseline commune population categorised into three size bins
-  # (<5,000; 5,000-50,000; 50,000+) for the town-size heterogeneity analysis.
-  mutate(pop_1992=cut(pop_SIRSUP_1992,
-                      breaks = c(0,5000,50000,Inf),
-                      labels = c("<5000", "5k-50k","50k+")))
-
-setwd(wd_data_linked)
 filename<-'data_2002_2011_roma_unique.csv'
-# data_02: 2002-2011 linked Roma sample; parallel structure to data_92 but
-# uses 2002 as the baseline census.
+# data_02: 2002-2011 linked Roma sample; each row is one individual matched
+# across the 2002 and 2011 censuses and identified as Roma in 2002.
 data_02<-read_sample(filename)
-data_02<-read_data(filename,data_02) %>%
-  # pop_2002: same three-bin categorisation applied to 2002 commune populations.
-  mutate(pop_2002=cut(pop_SIRSUP_2002,
-                      breaks = c(0,5000,50000,Inf),
-                      labels = c("<5000", "5k-50k","50k+")))
+data_02<-read_data(filename,data_02)
 
 # --- Construct Heterogeneity Variables and Standardise Column Names ---
 
 #construct heterogeneity variables and rename baseline columns----
-# migrant: changed commune between baseline and 2011.
-# Rename _1992/_2002 -> _baseline so the same model code applies to both cohorts.
-data_92<-data_92 %>%
-  # migrant: TRUE if the individual resided in a different commune in 2011 than
-  # at baseline; used to test whether geographic mobility mediates ethnic
-  # identification.
-  mutate(migrant= SIRSUP_2011!=SIRSUP_1992) %>%
-  # Standardise all year-specific suffixes to "_baseline" so the panel model
-  # code can be re-used without modification for the 2002-2011 cohort.
-  rename_with(.fn = ~gsub("_1992","_baseline",.))
-
-# Identical migrant construction for the 2002-2011 cohort.
+# migrant: changed commune between baseline (2002) and 2011.
 data_02<-data_02 %>%
   mutate(migrant= SIRSUP_2011!=SIRSUP_2002) %>%
+  # Standardise all 2002 suffixes to "_baseline" so the panel model code (an
+  # exact copy of the main Table 2 builder) applies unchanged.
   rename_with(.fn = ~gsub("_2002","_baseline",.))
 
-# AGE_baseline: age at the baseline census, computed as (census year) - birth year - 1.
+# AGE_baseline: age at the 2002 census, computed as 2002 - birth year - 1.
 # The -1 accounts for the fact that not everyone had their birthday before census day.
-data_92<-data_92 %>% mutate(AGE_baseline=1992-AA_2011-1)
 data_02<-data_02 %>% mutate(AGE_baseline=2002-AA_2011-1)
 
 # Add a "census" label used as a FE in the within-cohort model.
-data_reg_92<-data_92 %>% mutate(census="92")
 data_reg_02<-data_02 %>% mutate(census="02")
 
 
@@ -149,10 +121,9 @@ variables_p3 <- c('fit_years_2011'='Schooling Yrs',
 
 #build_het_table----
 # Estimate the three heterogeneity panels on a linked Roma sample (data_reg) and
-# return the assembled 3-panel LaTeX tabular (a character vector). Here it is run
-# on the 1992-2011 sample (-> Table 02); the 2002-2011 counterpart (Table A15) is
-# produced by an identical copy of this builder in its own script. All models
-# share the IV spec:
+# return the assembled 3-panel LaTeX tabular (a character vector). This is an exact
+# copy of the builder in the main Table 2 script; here it is run on the 2002-2011
+# sample (-> Table A15). All models share the IV spec:
 #   Outcome:       ROMA_2011 (1 = still Roma-identified in 2011)
 #   Endogenous:    years_2011 (years of schooling in 2011)
 #   Instrument:    years_baseline (years of schooling in the baseline census)
@@ -293,7 +264,7 @@ build_het_table <- function(data_reg) {
   # LaTeX column headers for each panel. Manually constructed so each panel can
   # carry its own descriptive header inside the shared tabular environment.
   p1_header <- c(
-    "& \\multicolumn{8}{c}{Panel 1: Gender and Parental Education}\\\\",
+    "& \\multicolumn{8}{c}{Panel 1: Ethnic Identification, Gender and Parental Education}\\\\",
     "& \\multicolumn{8}{c}{\\textit{Dependent Variable: Reported Roma Ethnicity (2011)}}\\\\",
     "& \\multicolumn{2}{c}{Sex} & \\multicolumn{2}{c}{Sex \\& Parental Educ.} & \\multicolumn{2}{c}{Mom Education} & \\multicolumn{2}{c}{Dad Education}\\\\",
     "& Male & Female & Male & Female & $\\geq 8$ Yrs & $<8$ Yrs & $\\geq 8$ Yrs & $<8$ Yrs \\\\",
@@ -302,7 +273,7 @@ build_het_table <- function(data_reg) {
   # Panel 2 header: 6 columns right-aligned in data columns 3-8 via two leading
   # empty cells.
   p2_header <- c(
-    "& & & \\multicolumn{6}{c}{Panel 2: Other Individual and Family Characteristics}\\\\",
+    "& & & \\multicolumn{6}{c}{Panel 2: Ethnic Identification and Other Individual and Family Characteristics}\\\\",
     "& & & \\multicolumn{6}{c}{\\textit{Dependent Variable: Reported Roma Ethnicity (2011)}}\\\\",
     "& & & \\multicolumn{2}{c}{Migrant} & \\multicolumn{2}{c}{Native Language} & \\multicolumn{2}{c}{Orthodox Religion}\\\\",
     "& & & Yes & No & Romani & Non-Romani & Yes & No \\\\",
@@ -338,84 +309,9 @@ build_het_table <- function(data_reg) {
 }
 
 
-# --- Town-Size Models (Appendix Table A08) ---
-
-## Town size: 1992-2011 and 2002-2011 samples ----
-# Six models: three town-size bins x two cohorts.
-# Tests whether the education effect differs by urban vs. rural context;
-# larger towns may offer more anonymity and more diverse ethnic networks.
-model_5k_92<-feols(ROMA_2011~1|SIRSUP_baseline^AA_baseline+census|years_2011~years_baseline,
-                   data=data_reg_92 %>% filter(pop_baseline %in% "<5000"),
-                   cluster=~SIRSUP_baseline)
-model_5_50k_92<-feols(ROMA_2011~1|SIRSUP_baseline^AA_baseline+census|years_2011~years_baseline,
-                      data=data_reg_92 %>% filter(pop_baseline %in% "5k-50k"),
-                      cluster=~SIRSUP_baseline)
-model_50k_92<-feols(ROMA_2011~1|SIRSUP_baseline^AA_baseline+census|years_2011~years_baseline,
-                    data=data_reg_92 %>% filter(pop_baseline %in% "50k+"),
-                    cluster=~SIRSUP_baseline)
-# 2002-2011 cohort: same three bins using 2002 commune populations (renamed to
-# pop_baseline by rename_with above).
-model_5k_02<-feols(ROMA_2011~1|SIRSUP_baseline^AA_baseline+census|years_2011~years_baseline,
-                   data=data_reg_02 %>% filter(pop_baseline %in% "<5000"),
-                   cluster=~SIRSUP_baseline)
-model_5_50k_02<-feols(ROMA_2011~1|SIRSUP_baseline^AA_baseline+census|years_2011~years_baseline,
-                      data=data_reg_02 %>% filter(pop_baseline %in% "5k-50k"),
-                      cluster=~SIRSUP_baseline)
-model_50k_02<-feols(ROMA_2011~1|SIRSUP_baseline^AA_baseline+census|years_2011~years_baseline,
-                    data=data_reg_02 %>% filter(pop_baseline %in% "50k+"),
-                    cluster=~SIRSUP_baseline)
-
-
-# --- Write Table 02 (1992-2011) ---
+# --- Write Table A15 (2002-2011) ---
 
 #write heterogeneity table----
 setwd(wd_output)
-# Table 02: main-text heterogeneity table on the 1992-2011 linked Roma sample.
-# The 2002-2011 counterpart (Table A15) is written by its own script.
-writeLines(build_het_table(data_reg_92), "Table 02.tex")
-
-
-# --- Appendix Table A08: Town Size ---
-
-#Appendix: town size (6 columns)----
-# F-stats for the six town-size x cohort models.
-ftown <- fstat_row(model_5k_92, model_5_50k_92, model_50k_92,
-                   model_5k_02, model_5_50k_02, model_50k_02)
-town_body <- ms_body(list("m1"=model_5k_92,
-                          "m2"=model_5_50k_92,
-                          "m3"=model_50k_92,
-                          "m4"=model_5k_02,
-                          "m5"=model_5_50k_02,
-                          "m6"=model_50k_02),
-                     ftown,
-                     c('fit_years_2011'='Schooling Yrs (Endline)',
-                       'years_2011'='Schooling Yrs (Endline)'),
-                     "lcccccc")
-# Split the body into coefficient rows and GOF rows so the Sample / Town
-# Population labels can be inserted between them.
-town_mid  <- grep("midrule", town_body)[1]
-# town_coef: rows above the internal \midrule (coefficient estimates and SEs).
-town_coef <- town_body[1:(town_mid-1)]
-# town_gof: rows below the internal \midrule (N, R^2, DV Mean, F-stat).
-town_gof  <- town_body[(town_mid+1):length(town_body)]
-
-# Assemble the appendix table; Sample and Town Population descriptor rows are
-# inserted manually between the coefficient block and the GOF block.
-town_table <- c(
-  "\\begin{tabular}[t]{lcccccc}",
-  "\\toprule",
-  "& \\multicolumn{6}{c}{\\textit{Dependent Variable: Reported Roma Ethnicity (2011)}}\\\\",
-  "& (1) & (2) & (3) & (4) & (5) & (6) \\\\",
-  "\\midrule",
-  town_coef,
-  "\\midrule",
-  "Sample & '92-'11 & '92-'11 & '92-'11 & '02-'11 & '02-'11 & '02-'11 \\\\",
-  "Town Population & $<$5k & 5k-50k & 50k+ & $<$5k & 5k-50k & 50k+ \\\\",
-  "\\midrule",
-  town_gof,
-  "\\bottomrule",
-  "\\end{tabular}")
-
-# Output: Table A08.tex -- appendix table of ethnic identification by town size.
-setwd(wd_output)
-writeLines(town_table, "Table A08.tex")
+# Table A15: 2002-2011 appendix counterpart of Table 2, on the 2002-2011 sample.
+writeLines(build_het_table(data_reg_02), "Table A15.tex")

@@ -165,6 +165,7 @@ replication_final/
 │   ├── AA Table A12 structural parameters distribution/ Table A.12 (1 script)
 │   ├── AA Table A13 survey ethnic identification and education/ Table A.13 (1 script)
 │   ├── AA Table A14 survey Roma markers/             Table A.14 (1 script)
+│   ├── AA Table A15 heterogeneity 2002-2011/         Table A.15 (1 script)
 │   └── AA text/                                      In-text statistics (4 scripts)
 ├── data/
 │   ├── raw/                                          Raw data (not provided; see Data Availability)
@@ -251,6 +252,7 @@ Estimation scripts require an HPC environment. If pre-computed results (`.rds` f
 | Table A.12 | Fraction of Roma-background Individuals with a Null Probability of Roma Self-Reporting | `code/AA Table A12 structural parameters distribution/Table A12 structural parameters distribution.R` | `output/Table A12.tex` |
 | Table A.13 | Respondent Views Internally Consistent but Divergent | `code/AA Table A13 survey ethnic identification and education/Table A13.R` | `output/Table A13.tex` |
 | Table A.14 | Perceived Markers of Roma Ethnicity | `code/AA Table A14 survey Roma markers/Table A14 survey Roma markers.R` | `output/Table A14.tex` |
+| Table A.15 | Changes in Ethnic Identification by Education — Heterogeneity (2002–2011) | `code/AA Table A15 heterogeneity 2002-2011/Table A15 heterogeneity 2002-2011.R` | `output/Table A15.tex` |
 
 ### In-Text Statistics
 
