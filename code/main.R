@@ -25,7 +25,12 @@ pacman::p_load(data.table,
                triangle,
                GA,
                quadprog,
-               Hmisc#correlation matrix
+               Hmisc,#correlation matrix
+               doParallel,#parallel backend for structural model bootstrap
+               foreach,   #parallel foreach loops in structural model estimation
+               rmarkdown, #render() calls in 02_analysis_main.R
+               dtplyr,    #data.table backend for dplyr (structural model)
+               EnvStats   #statistical utilities used in structural model
                )
 
 

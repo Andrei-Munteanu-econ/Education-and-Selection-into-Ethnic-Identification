@@ -4,7 +4,6 @@
 
 #load survey data
 setwd(wd_data_survey)
-library(foreign)
 # baza_Link1.sav / baza_Link2.sav: two waves or sub-samples of the survey dataset in SPSS format
 data1 <- read.spss("baza_Link1.sav", to.data.frame = TRUE)
 data2 <- read.spss("baza_Link2.sav", to.data.frame = TRUE)

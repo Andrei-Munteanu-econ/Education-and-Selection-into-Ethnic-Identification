@@ -1,7 +1,5 @@
 # Post-estimation structural model analysis; uses saved .rds results; produces output for Figure 2
 # --- Setup ---
-library(pacman)
-pacman::p_load(tidyverse,data.table,fixest,xtable,modelsummary,haven,GA,dtplyr,foreach,doParallel,kableExtra,Hmisc)
 
 # wd_structural: root directory for structural model scripts and saved .rds results
 wd_structural<-paste0(wd_code,'/05 Structural model estimation/')
