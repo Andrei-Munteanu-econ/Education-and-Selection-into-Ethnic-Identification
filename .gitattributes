@@ -4,3 +4,7 @@
 *.md text eol=lf
 *.tex text eol=lf
 *.csv text eol=lf
+
+# Keep these in the repo but drop them from `git archive` (the deposit zip):
+.gitignore     export-ignore
+.gitattributes export-ignore
