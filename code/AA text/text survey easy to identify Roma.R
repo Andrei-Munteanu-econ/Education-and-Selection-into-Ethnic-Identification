@@ -2,28 +2,11 @@
 
 # --- Setup: Load Survey Data ---
 
-# Switch to the directory containing the raw survey SPSS files
-setwd(wd_data_survey)
+# Switch to the directory containing the anonymized survey CSVs
+setwd(wd_data_survey_processed)
 
-# Load the two survey arms (Link1 = no priming, Link2 = priming) and tag each
-# with its experimental condition so they can be distinguished after stacking
-data1<-read_sav("baza_Link1.sav") %>% mutate(priming="No Priming")
-data2<-read_sav("baza_Link2.sav") %>% mutate(priming="Priming")
-
-# Stack both arms into one master file for descriptive operations
-data_master<-bind_rows(data1,data2)
-
-
-# Rebuild master with decoded locality labels (den_loc and jud are labelled
-# SPSS variables; as_factor() extracts their value labels as character strings)
-data_master <- bind_rows(data2, data1) %>%
-  # decode den_loc -> town, jud (labelled -> character, uppercased)
-  mutate(
-    # [town]: survey respondent's municipality name (standardised to uppercase)
-    town = toupper(as.character(as_factor(den_loc))),
-    # [jud]: county (judet) name, uppercase for consistent merging
-    jud  = toupper(as.character(as_factor(jud)))
-  )
+# The V4 ease-of-identification distribution below uses the no-priming arm only.
+data1 <- fread("survey_no_priming.csv") %>% mutate(priming = "No Priming")
 
 
 # --- Construct Roma Flag ---
@@ -35,10 +18,12 @@ dat <- data1 %>%
   # [roma]: 1 if the respondent or the enumerator identifies the person as Roma
   mutate(roma = as.integer(VII1_3 == 1 | VII2_3 == 1))
 
-# --- Table 3: V4 frequency distribution -------------------------------------
+# --- V4 frequency distribution (in-text "ease of identification" statistic) -
 # 5 ordered levels; labels translated from the Romanian in the .do comment.
 # V4 asks enumerators how easy it was to determine the respondent's ethnicity
-# (1 = very easy ... 5 = very difficult); this distribution is Table A13
+# (1 = very easy ... 5 = very difficult). This distribution is the in-text
+# exhibit "text easy to identify Roma.tex" (NOT Table A13, which is a separate
+# 2x2 cross-tab produced by "AA Table A13 .../Table A13.R").
 v4_labels <- c(
   "1" = "Very easy to know the person's ethnicity",
   "2" = "Relatively easy",
@@ -80,5 +65,5 @@ tab3 <- c(
 # --- Output ---
 
 setwd(wd_output)
-# Write Table A13 (enumerator ease-of-identification distribution) to disk
-writeLines(tab3, file.path(wd_output, "Table A13.tex"))
+# Write the in-text ease-of-identification distribution to disk
+writeLines(tab3, file.path(wd_output, "text easy to identify Roma.tex"))

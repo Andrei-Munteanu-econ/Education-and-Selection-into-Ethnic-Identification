@@ -42,33 +42,25 @@
 # ---- 1a. Load 2011 census + births data ------------------------------------
 setwd(wd_data_11)
 filename <- 'data_2011_clean_births.csv'
-# Select only the variables needed for this analysis; keep the data footprint small
 data_2011 <- read_sample(filename) %>%
   select(id11, id11_MOM, id11_MOM_BC, nat, LIM, AA, years,
          SIRUTA, SIRSUP, ROMA, ROMA_MOM, HHID,
          scoala_m, years_MOM, years_POP, SEX, category, source,
          ET_MOM, ET_POP, ET_SPOUSE)
-# read_data applies any project-specific post-processing (type casting, filters);
-# ROMA_bc = birth-certificate Roma declaration (nat == 12); ROMA_lim = Romani-language Roma flag
 data_2011 <- read_data(filename, data_2011) %>%
   mutate(ROMA_bc  = nat == 12,
          ROMA_lim = LIM == 1201)
 
-# Restrict to children born 2002-2011 for the intergenerational sample
 data_2011_kids <- data_2011 %>%
   filter(AA %in% 2002:2011)
 
 # ---- 1b. Load linked 1992-2011 Roma panel -----------------------------------
 setwd(wd_data_linked)
-# This is the 1:1 uniquely-matched Roma panel used in all main IV regressions
 data_1992_2011_r <- fread('data_1992_2011_roma_unique.csv')
-# Construct language-based Roma flags for both baseline and endline
-# LIM_1992 == 12 means Romani declared as mother tongue in 1992; LIM_2011 == 1201 is equivalent 2011 code
 data_1992_2011_r <- data_1992_2011_r %>%
   mutate(ROMA_1992_LIM = LIM_1992 == 12,
          ROMA_2011_LIM = LIM_2011 == 1201)
 
-# Variables to pull from the linked panel when merging onto the mother-child sample
 mom_vars <- c("id11", "years_1992", "years_2011",
               "ROMA_1992", "ROMA_2011",
               "ROMA_1992_LIM", "ROMA_2011_LIM",
@@ -83,8 +75,6 @@ mom_vars <- c("id11", "years_1992", "years_2011",
 
 # ---- 1c. Mother-child linked sample (VSN) -----------------------------------
 # Children -> mothers via birth certificate ID
-# id11_MOM_BC links a child's birth-certificate record to the mother's 2011 individual ID;
-# joining onto the Roma linked panel gives the mother's education history and ethnicity flags
 data_mom_vsn <- data_2011_kids %>%
   inner_join(
     data_1992_2011_r %>% select(all_of(mom_vars)),
@@ -93,14 +83,11 @@ data_mom_vsn <- data_2011_kids %>%
   )
 
 # ---- 1d. Build loose Roma reference sets per census -------------------------
-# "Loose Roma" = self-identifies OR has at least one Roma parent; used to classify
-# a spouse's Roma background even when the spouse does not self-identify as Roma
 setwd(wd_data_92)
 filename <- 'data_1992_clean.csv'
 data_1992 <- read_sample(filename) %>%
   select(ROMA, ET_MOM, ET_POP, ET_SPOUSE, source, id92)
 data_1992 <- read_data(filename, data_1992)
-# ET_MOM / ET_POP == 12 means the person's recorded mother/father is Roma (ZZ == 12)
 data_1992_roma_loose <- data_1992 %>%
   filter(ET_MOM == 12 | ET_POP == 12 | ROMA == T)
 
@@ -109,7 +96,6 @@ filename <- 'data_2011_clean_births.csv'
 data_2011_for_spouse <- read_sample(filename) %>%
   select(ROMA, ET_MOM, ET_POP, ET_SPOUSE, source, id11)
 data_2011_for_spouse <- read_data(filename, data_2011_for_spouse)
-# ET_MOM/ET_POP codes 1200-1299 are the 2011 Roma ethnicity range (different coding scheme)
 data_2011_roma_loose <- data_2011_for_spouse %>%
   filter(ET_MOM %in% 1200:1299 | ET_POP %in% 1200:1299 | ROMA == T)
 
@@ -136,23 +122,16 @@ id11_linked_baseline <- data_1992_2011_full$id11
 # 2 = Non-Roma Sp. (Baseline) : endline spouse + endline spouse linked to baseline + NOT loose-Roma at baseline
 # 3 = No Sp. (endline)        : no 2011 spouse identifier of any kind
 # NA = dropped (endline spouse but cannot be looked up at baseline)
-# Using baseline spouse ethnicity (rather than endline) avoids reverse causality:
-# a spouse may also change ethnic identification over time, so endline spouse
-# ethnicity is itself potentially endogenous to the same passing process.
 add_spouse_cat <- function(df) {
   df %>%
     mutate(
-      # sp_absent: no 2011 spouse in the household and no within-household spouse code
       sp_absent        = is.na(id11_SPOUSE) & is.na(ET_SPOUSE_2011),
-      # sp_baseline_obs: the 2011 spouse can be traced back to a 1992 record
       sp_baseline_obs  = id11_SPOUSE %in% id11_linked_baseline,
-      # sp_roma_baseline: the 2011 spouse was loose-Roma at 1992 baseline
       sp_roma_baseline = id11_SPOUSE %in% id11_loose_roma_baseline,
       SPOUSE_CAT = case_when(
         sp_absent                                          ~ 3L,
         !sp_absent & sp_baseline_obs &  sp_roma_baseline   ~ 1L,
         !sp_absent & sp_baseline_obs & !sp_roma_baseline   ~ 2L,
-        # Endline spouse present but no baseline record: baseline status unobservable -> drop
         TRUE                                               ~ NA_integer_
       )
     ) %>%
@@ -161,13 +140,11 @@ add_spouse_cat <- function(df) {
 
 data_mom_vsn <- add_spouse_cat(data_mom_vsn)
 
-# Confirm no unclassified observations remain after filtering
 stopifnot(!any(is.na(data_mom_vsn$SPOUSE_CAT)))
 
 # ---- 1f. Build own-passing regression data (1992 cohort adults) -------------
 setwd(wd_data_linked)
 data_92 <- read_sample('data_1992_2011_roma_unique.csv')
-# pop_1992: town-size tercile at 1992, used as a robustness control in related specifications
 data_92 <- read_data('data_1992_2011_roma_unique.csv', data_92) %>%
   mutate(pop_1992 = cut(pop_SIRSUP_1992,
                         breaks = c(0, 5000, 50000, Inf),
@@ -185,16 +162,13 @@ data_92 <- data_92 %>%
       !sp_absent & sp_baseline_obs & !sp_roma_baseline   ~ 2L,
       TRUE                                               ~ NA_integer_
     ),
-    # migrant: indicator for cross-locality movers between 1992 and 2011
     migrant = SIRSUP_2011 != SIRSUP_1992
   ) %>%
   filter(!is.na(SPOUSE_CAT)) %>%
-  # Rename suffix so FE formula can refer to baseline locality/cohort as SIRSUP_baseline
   rename_with(.fn = ~gsub("_1992", "_baseline", .))
 
 stopifnot(!any(is.na(data_92$SPOUSE_CAT)))
 
-# census tag allows pooled regressions across cohorts in other scripts; kept for consistency
 data_reg <- data_92 %>%
   mutate(census = "92")
 
@@ -209,11 +183,6 @@ print(data_mom_vsn %>% count(SPOUSE_CAT))
 # 2. TABLE 1 — OWN PASSING BY SPOUSE ETHNICITY (3 cats x 2 sexes = 6 cols)
 # =============================================================================
 
-# IV specification: years_2011 (endogenous) instrumented by years_baseline (1992 education).
-# FE: locality × birth-cohort cell (SIRSUP_baseline^AA_baseline) absorbs local cohort trends.
-# Clustering at the locality level accounts for within-town correlation in passing rates.
-# Splitting by SPOUSE_CAT tests whether the effect of education on passing differs
-# by the ethnic composition of the marriage market.
 fit_own <- function(sex_val, cat_val) {
   feols(
     ROMA_2011 ~ 1 | SIRSUP_baseline^AA_baseline + census | years_2011 ~ years_baseline,
@@ -239,10 +208,6 @@ own_men_3 <- fit_own(1, 3); summary(own_men_3)
 # =============================================================================
 
 # VSN linkage, DV = ROMA_bc (child birth-cert ethnicity)
-# FE: mother's 1992 locality × mother's birth cohort cell; instrument = mother's 1992 years of schooling.
-# This tests whether a mother's education (via passing channel) shifts the ethnic label
-# recorded on the child's birth certificate — a very early, administrative measure of
-# intergenerational ethnic transmission.
 fit_child_vsn_bc <- function(cat_val) {
   feols(
     ROMA_bc ~ 1 | SIRSUP_1992^AA_1992 | years_2011 ~ years_1992,
@@ -253,8 +218,6 @@ fit_child_vsn_bc <- function(cat_val) {
 
 # VSN linkage, DV = ROMA (child 2011 self-decl)
 # Same sample as above; only the DV changes -> N's match column-by-column
-# Comparing ROMA_bc vs. ROMA for the same child reveals whether birth-cert and
-# self-reported ethnicity diverge differently by mother's education/spouse type.
 fit_child_vsn_roma <- function(cat_val) {
   feols(
     ROMA ~ 1 | SIRSUP_1992^AA_1992 | years_2011 ~ years_1992,
@@ -284,24 +247,18 @@ child_vsn_roma_3 <- fit_child_vsn_roma(3); summary(child_vsn_roma_3)
 # =============================================================================
 
 # ---- Formatting setup (identical to 2nd script) ----------------------------
-# Rename IV-fitted coefficient to match the display label used across all tables
 variables <- c(
   'years_2011'     = 'Schooling Yrs',
   'fit_years_2011' = 'Schooling Yrs'
 )
 
-# f_big: comma-formatted number printer used for large counts (N rows) and F-statistics
 f_big <- function(x) format(x, big.mark = ",", scientific = FALSE, nsmall = 1, digits = 1)
-# Suppress modelsummary's default scientific-notation wrapping in LaTeX output
 options(modelsummary_format_numeric_latex = "plain")
-# glance_custom.fixest: inject dependent-variable mean as an extra GOF row;
-# reconstructed as mean(fitted + residuals) since feols stores demeaned outcome
 glance_custom.fixest <- function(x, ...) {
   dv <- sprintf("%.2f", base::mean(x$fitted.values + x$residuals, na.rm = TRUE))
   data.table::data.table(`Mean of DV` = dv)
 }
 
-# gof_map controls which fit statistics appear in the table and in what order
 gof_map <- list(
   list("raw" = "nobs",       "clean" = "N",       "fmt" = f_big),
   list("raw" = "r.squared",  "clean" = "R$^2$",   "fmt" = "%.2f"),
@@ -309,8 +266,6 @@ gof_map <- list(
 )
 
 # ---- Panel A: Own passing (F-stat add_rows, exactly like 2nd script) --------
-# First-stage F-statistics assess instrument strength for each subsample;
-# values well above 10 confirm that 1992 schooling is a strong instrument within each spouse category.
 f_own <- data.frame(
   n    = "F-stat",
   col1 = fitstat(own_women_1, "ivf")$ivf1$stat,
@@ -322,8 +277,6 @@ f_own <- data.frame(
 )
 f_own <- f_big(f_own)
 
-# Build LaTeX tabular body for Panel A (own passing); output="latex_tabular" omits
-# the surrounding \begin{table} wrapper so panels can be stitched manually below
 tabA <- modelsummary(
   list(
     "Roma Sp. (Baseline)"     = own_women_1,
@@ -356,7 +309,6 @@ f_child <- data.frame(
 )
 f_child <- f_big(f_child)
 
-# Build LaTeX tabular body for Panel B (child's passing)
 tabB <- modelsummary(
   list(
     "Roma Sp. (Baseline)"     = child_vsn_bc_1,
@@ -407,7 +359,6 @@ split_body <- function(body) {
 pa <- split_body(bodyA)
 pb <- split_body(bodyB)
 
-# panel_title: produces a full-width \multicolumn spanning all 6 data columns
 panel_title <- function(txt)
   sprintf("& \\multicolumn{6}{c}{%s} \\\\", txt)
 
@@ -425,8 +376,6 @@ header_child <- c(
   "& (1) & (2) & (3) & (4) & (5) & (6) \\\\"
 )
 
-# Assemble the final LaTeX tabular environment: custom column spec adds 2em space
-# between the women and men blocks (or birth-cert and census blocks) for readability
 stitched <- c(
   "\\begin{tabular}{lccc@{\\hspace{2em}}ccc}",
   "\\toprule",
@@ -449,7 +398,6 @@ stitched <- c(
   "\\end{tabular}"
 )
 
-# Output: Table 03.tex — two-panel LaTeX table (own passing + child passing by spouse ethnicity)
 setwd(wd_output)
 writeLines(stitched, "Table 03.tex")
 # add_column_numbers("Table 03.tex")

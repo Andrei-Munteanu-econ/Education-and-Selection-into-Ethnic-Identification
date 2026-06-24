@@ -1,18 +1,50 @@
-# Confidential microdata — never commit
-data/
+# =====================================================================
+# .gitignore — replication package
+#
+# Principle: the committed tree should EQUAL the distributable package, so that
+# `git archive HEAD` (or a GitHub release zip) reproduces it exactly with no
+# manual curation. We therefore ignore only:
+#   (a) confidential raw source data,
+#   (b) generated intermediates,
+#   (c) backups and dev/editor/OS artifacts.
+# Everything the README lists as "provided" is committed (see notes below).
+# =====================================================================
 
-# Backup code folders
+# ── (a) Confidential raw source microdata — never commit ─────────────────────
+# Replicators place the confidential INS census / birth / survey files in these
+# folders (see README "Data Availability and Provenance"); the read/clean
+# scripts also write intermediate CSVs into the year folders. Neither the
+# confidential inputs nor those intermediates belong in the repo.
+# NOTE: data/raw/other/ (nomenclator code tables) is NOT ignored — it is provided.
+data/raw/1992/
+data/raw/2002/
+data/raw/2011/
+data/raw/Birth/
+data/raw/survey/
+data/raw/shapefiles/
+data/raw/elections/
+
+# ── (b) Generated intermediates — reproducible from a run ────────────────────
+data/processed/linked/
+data/processed/results/
+
+# Provided data that IS committed (listed here for the record; NOT ignored):
+#   data/raw/other/             census nomenclators / code tables
+#   data/raw census/            SIRUTA + nomenclator code tables
+#   data/processed/structural/  structural-model bootstrap results (.rds)
+#   data/processed/survey/      anonymized survey extracts + siruta3 lookup
+
+# ── (c) Backups, R / editor artifacts, OS cruft ──────────────────────────────
 code/*/bkp/
-
-# R artifacts
 .Rhistory
 .RData
 .Rproj.user/
 *.Rproj
-
-# Temp files
 *.tmp
 *.tmp.*
+.DS_Store
+Thumbs.db
 
-# Claude Code internal instructions (not part of the replication package)
+# Claude Code internal (not part of the replication package)
+.claude/
 CLAUDE.md

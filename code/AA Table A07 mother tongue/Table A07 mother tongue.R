@@ -1,48 +1,39 @@
-# Produces Table A.7: Changes in Ethnic Identification by Education — Ethnicity Defined using Romani as Mother Tongue
+# =====================================================================
+# Appendix Table A07 — Ethnic passing using the mother-tongue (LIM) definition of Roma
+# Produces:  output/Table A07.tex
+# Inputs:    data_1992_2011_roma_unique.csv (1992->2011 Roma panel),
+#            data_2002_2011_roma_unique.csv (2002->2011 Roma panel),
+#            data_2011_clean_births.csv (2011 census + birth records)
+# Summary:   Re-runs the passing analysis but defines Roma by declared mother
+#            tongue (the census LIM code: LIM==12 in 1992, LIM==1201 in 2011)
+#            rather than self-reported ethnicity. Estimates OLS and IV (2011
+#            schooling instrumented by 1992 schooling) of the 2011 mother-tongue
+#            Roma indicator on schooling, with locality x birth-year FE and
+#            locality-clustered SEs. The two displayed columns (OLS, IV on the
+#            1992->2011 panel) are written to a LaTeX table.
+# =====================================================================
 
-# --- Section 1: Load and Prepare Linked 1992-2011 Panel (Language-Based Ethnicity) ---
-
-# Switch to the directory containing linked census panel files
-#load data
+# ---- Load 1992->2011 Roma panel and build mother-tongue (LIM) Roma flags ----
 setwd(wd_data_linked)
-# Load the unique matched Roma records linking 1992 and 2011 individual observations
 data_1992_2011_r<-fread('data_1992_2011_roma_unique.csv')
-# Construct language-based Roma flags: LIM_1992==12 flags Romani mother tongue in 1992;
-# LIM_2011==1201 flags Romani mother tongue in 2011 (different coding scheme across censuses)
 data_1992_2011_r<-data_1992_2011_r %>%
   mutate(ROMA_1992_LIM=LIM_1992==12,
          ROMA_2011_LIM=LIM_2011==1201)
 
-# --- Section 2: Load and Prepare 2011 Census Data with Birth-Record Children ---
-
-# Switch to the 2011 census data directory
 setwd(wd_data_11)
 filename<-'data_2011_clean_births.csv'
-# Read a representative sample of the 2011 census using the project-standard sampling function
 data_2011<-read_sample(filename)
-# Retain only variables needed for mother-tongue and intergenerational analysis
 data_2011<-data_2011 %>%
   select(id11,id11_MOM,id11_MOM_BC,nat,LIM,LIM_MOM,AA,years,SIRUTA,SIRSUP,ROMA,ROMA_MOM,HHID,scoala_m,years_MOM,years_POP,SEX,category,source)
-# Read the full data for this file, then derive language-based ethnicity flags
-# ROMA_bc: child born 2002-2011 identified as Roma by nat (birth record ethnic code)
-# ROMA_LIM: child has Romani as mother tongue in 2011 (LIM==1201)
-# ROMA_MOM_LIM: incorrectly labeled but used as a child-level LIM flag (LIM==1201); see model usage
 data_2011<-read_data(filename,data_2011) %>%
   mutate(ROMA_bc=nat==12) %>%
   mutate(ROMA_LIM=LIM==1201) %>%
   mutate(ROMA_MOM_LIM=LIM==1201)
-# Restrict to children born between 2002 and 2011 to identify mother–child pairs in 2011 census
 data_2011_kids<-data_2011 %>%
   filter(AA %in% 2002:2011)
 
-# --- Section 3: Build Intergenerational Dataset (Mother Linked to 1992-2011 Panel) ---
-
-# Join children born 2002-2011 (from 2011 census) to their mothers' panel records (1992-2011).
-# id11_MOM_BC identifies the mother's 2011 census person ID via birth records, matched to id11
-# in the panel. This enables analysis of how the mother's education affects the child's ethnic
-# identification, and how the mother's own re-identification can be inferred from her child's birth record.
 data_1992_2011_mom<-data_2011_kids %>%
-  inner_join(data_1992_2011_r %>%
+  inner_join(data_1992_2011_r %>% 
                select(id11,years_1992,years_2011,
                       ROMA_1992,ROMA_2011,
                       ROMA_1992_LIM,ROMA_2011_LIM,
@@ -56,30 +47,23 @@ data_1992_2011_mom<-data_2011_kids %>%
 
 
 
-# --- Section 4: OLS and IV Regressions — Main Panel (1992-2011, Language-Based Outcome) ---
-
-# OLS: effect of 2011 schooling on probability of retaining Romani mother tongue in 2011,
-# among individuals language-identified as Roma in 1992. Fixed effects: locality x birth-year cell.
-#baseline mom-11 mom
+# ---- Passing regressions, mother-tongue (LIM) Roma outcomes ----
+# Baseline-Roma (LIM) sample; locality x birth-year FE; locality-clustered SEs.
+# OLS: 2011 mother-tongue Roma on 2011 schooling.
 model_ols_baseline_11_92<-feols(data=data_1992_2011_r %>%
                                   filter(!is.na(years_1992)) %>%
                                   filter(ROMA_1992_LIM==T),
                                 ROMA_2011_LIM~years_2011|SIRSUP_1992^AA_1992,
                                 cluster=~SIRSUP_1992)
 summary(model_ols_baseline_11_92)
-# IV: instruments years_2011 with years_1992 to address endogeneity of education choice.
-# Sample: language-identified Roma in 1992 (ROMA_1992_LIM==T), no additional restriction on years_1992.
 #baseline mom-11 mom
 model_iv_baseline_11_92<-feols(data=data_1992_2011_r %>%
                                  filter(ROMA_1992_LIM==T),
                                ROMA_2011_LIM~1|SIRSUP_1992^AA_1992|years_2011~years_1992,
                                cluster=~SIRSUP_1992)
 summary(model_iv_baseline_11_92)
-# IV: same IV strategy but outcome is the child's Roma birth-record ethnicity (ROMA_bc),
-# testing whether the mother's education (instrumented by 1992 schooling) predicts intergenerational
-# ethnic transmission, using the language-based mother sample
 #baseline mom-bc
-model_iv_baseline_bc_92<-feols(data=data_1992_2011_mom %>%
+model_iv_baseline_bc_92<-feols(data=data_1992_2011_mom %>% 
                                  filter(ROMA_1992_LIM==T),
                                ROMA_bc~1|SIRSUP_1992^AA_1992|years_2011~years_1992,
                                cluster=~SIRSUP_1992)
@@ -87,37 +71,25 @@ summary(model_iv_baseline_bc_92)
 
 
 
-# --- Section 5: Supplementary Regressions — Birth-Record Sample (Cross-Checks) ---
-
-# OLS: among children with a Roma birth-record mother (ROMA_bc==T), regresses the child's own
-# Romani mother-tongue status in 2011 on mother's years of schooling (years_2011 from panel),
-# with locality x mother birth-year fixed effects
 #bc-11 mom
-model_ols_bc_11<-feols(data=data_1992_2011_mom %>%
+model_ols_bc_11<-feols(data=data_1992_2011_mom %>% 
                          filter(ROMA_bc==T),
                                ROMA_2011_LIM~years_2011|SIRSUP_2011^AA_2011,
                                cluster=~SIRSUP_2011)
 summary(model_ols_bc_11)
 
-# OLS: using the 2011-only cross-section; among children with a Roma birth-record mother,
-# tests whether the mother's years of schooling (years_MOM from 2011 census) predicts whether
-# the mother herself declares Romani as mother tongue in 2011 (ROMA_MOM_LIM)
 #bc-11 mom
 model_ols_bc_11_MOM<-feols(data=data_2011 %>% filter(ROMA_bc==T),
                       ROMA_MOM_LIM~years_MOM|SIRSUP^AA,
                       cluster=~SIRSUP)
 summary(model_ols_bc_11_MOM)
 
-# IV: effect of mother's education (instrumented by 1992 schooling) on intergenerational transmission
-# measured by the child's Roma birth-record status; language-identified Roma 1992 mothers only
 #baseline mom-bc
 model_iv_baseline_11_92_child<-feols(data=data_1992_2011_mom %>% filter(ROMA_1992_LIM==T),
                                      ROMA_bc~1|SIRSUP_1992^AA_1992|years_2011~years_1992,
                                      cluster=~SIRSUP_1992)
 summary(model_iv_baseline_11_92_child)
 
-# IV: same IV setup but outcome is the child's own Romani mother-tongue status (ROMA_LIM) in 2011,
-# capturing a second generation language-based passing outcome
 #baseline mom-2011 child
 model_iv_baseline_11_92_child2<-feols(data=data_1992_2011_mom %>% filter(ROMA_1992_LIM==T),
                                      ROMA_LIM~1|SIRSUP_1992^AA_1992|years_2011~years_1992,
@@ -127,10 +99,8 @@ summary(model_iv_baseline_11_92_child2)
 
 
 
-# --- Section 6: Table Formatting Utilities ---
-
-######
-# Map internal regressor names to display labels for the regression table
+# ---- Assemble the LaTeX table ----
+# Display labels for the schooling regressors and a thousands-separator formatter.
 variables<-c('years_2011'='Schooling Yrs',
              'years_MOM'='Schooling Yrs',
              'years_1992'='Schooling Yrs',
@@ -139,11 +109,8 @@ variables<-c('years_2011'='Schooling Yrs',
              'years_MOM_1992'="Schooling Yrs Mom (Baseline)",
              'years_POP_1992'="Schooling Yrs Dad (Baseline)",
              "fit_years_MOM_CHILD"='Schooling Yrs (Endline)')
-# Helper to format large numbers with commas and fixed decimal places
 f_big<-function(x) format(x, big.mark=",", scientific=FALSE, nsmall=1,digits=1)
 options(modelsummary_format_numeric_latex = "plain")
-# Custom glance method for fixest objects: recovers the dependent variable mean
-# by summing fitted values and residuals, then formats it for the GOF block
 glance_custom.fixest <- function(x, ...) {
   dv1 <- x$fitted.values
   dv2 <- x$residuals
@@ -151,8 +118,6 @@ glance_custom.fixest <- function(x, ...) {
   data.table::data.table(`Mean of DV` = dv)
 }
 
-# Extract first-stage F-statistic from the IV model for the F-stat row in the table;
-# OLS column gets an empty string since there is no first stage
 f<-data.frame(n="F-stat",
               ols="",
               # ols2="",
@@ -164,12 +129,8 @@ f<-data.frame(n="F-stat",
 f<-f_big(f)
 
 
-# --- Section 7: Produce LaTeX Table and Post-Process ---
-
-# Switch to the output directory before writing the table file
 #IV table
 setwd(wd_output)
-# Build the latex_tabular string with OLS and IV columns; stars follow AEJ conventions
 tab <- modelsummary(list(
   "OLS '92-'11"=model_ols_baseline_11_92,
   # "OLS Birth-'11 Mom"=model_ols_bc_11_MOM,
@@ -196,7 +157,6 @@ coef_rename=variables,
 align = "lcc",
 escape=F)
 
-# Split the single latex string into a character vector of lines for surgical insertion
 lines <- strsplit(tab, "\n")[[1]]
 
 # The Sample/Outcome block: each cell stacks 2-3 lines via \makecell
@@ -211,12 +171,10 @@ sample_outcome <- c(
 n_row   <- grep("^N &", lines)[1]
 mid_idx <- max(grep("midrule", lines[seq_len(n_row)]))   # last midrule before N
 
-# Splice the sample/outcome descriptor rows just above the GOF block separator
+# ---- Save table and append column numbers ----
 lines <- append(lines, sample_outcome, after = mid_idx - 1)
-# Output: Table A7.tex — LaTeX tabular fragment for Table A.7 in the appendix
-writeLines(lines, "Table A7.tex")
+writeLines(lines, "Table A07.tex")
 
-# Post-process the .tex file to prepend a (1), (2), ... column-number header row
-add_column_numbers("Table A7.tex")
+add_column_numbers("Table A07.tex")
 
 

@@ -1,101 +1,16 @@
-# Produces Table A.12: Fraction of Roma-background Individuals with a Null Probability of Roma Self-Reporting
-# setwd(wd_data_structural)
-# results_all<-readRDS("results_parallel.rds")
-# results_all<-results_all %>%
-#   mutate(Education=case_when(id==0 ~ "None",
-#                              id==4 ~ "Primary",
-#                              id %in% 8:10  ~ "Middle School",
-#                              id %in% 12:13 ~ "High School",
-#                              id %in% 14:16 ~ "Postsec")) %>%
-#   mutate(Education=factor(Education,levels=c("None","Primary","Middle School","High School","Postsec"))) %>%
-#   # mutate(Education=factor(Education,levels=c("None","Primary School","Middle School","High School or Vocational","Post- Secondary")))
-#   # mutate(Education=case_when(id==0 ~ "None",
-#   #                          id==4 ~ "GS",
-#   #                          id %in% 8:10  ~ "MS",
-#   #                          id %in% 12:13 ~ "HS",
-#   #                          id %in% 14:16 ~ "Postsec")) %>%
-#   # mutate(Education=factor(Education,levels=c("None","GS","MS","HS","Postsec"))) %>%
-#   mutate(educ=as.numeric(as.character(id)))
-#
-# setwd(wd_data_structural)
-# results_lognormal<-readRDS("results_parallel_lognormal.rds")
-# results_lognormal<-results_lognormal %>%
-#   mutate(Education=case_when(id==0 ~ "None",
-#                              id==4 ~ "Primary",
-#                              id %in% 8:10  ~ "Middle School",
-#                              id %in% 12:13 ~ "High School",
-#                              id %in% 14:16 ~ "Postsec")) %>%
-#   mutate(Education=factor(Education,levels=c("None","Primary","Middle School","High School","Postsec"))) %>%
-#   # mutate(Education=factor(Education,levels=c("None","Primary School","Middle School","High School or Vocational","Post- Secondary")))
-#   # mutate(Education=case_when(id==0 ~ "None",
-#   #                          id==4 ~ "GS",
-#   #                          id %in% 8:10  ~ "MS",
-#   #                          id %in% 12:13 ~ "HS",
-#   #                          id %in% 14:16 ~ "Postsec")) %>%
-#   # mutate(Education=factor(Education,levels=c("None","GS","MS","HS","Postsec"))) %>%
-#   mutate(educ=as.numeric(as.character(id)))
-#
-# setwd(wd_data_structural)
-# results_u<-readRDS("results_uniform.rds")
-# results_u<-results_u %>%
-#   mutate(Education=case_when(id==0 ~ "None",
-#                              id==4 ~ "Primary",
-#                              id %in% 8:10  ~ "Middle School",
-#                              id %in% 12:13 ~ "High School",
-#                              id %in% 14:16 ~ "Postsec")) %>%
-#   mutate(Education=factor(Education,levels=c("None","Primary","Middle School","High School","Postsec"))) %>%
-#   # mutate(Education=factor(Education,levels=c("None","Primary School","Middle School","High School or Vocational","Post- Secondary")))
-#   # mutate(Education=case_when(id==0 ~ "None",
-#   #                          id==4 ~ "GS",
-#   #                          id %in% 8:10  ~ "MS",
-#   #                          id %in% 12:13 ~ "HS",
-#   #                          id %in% 14:16 ~ "Postsec")) %>%
-#   # mutate(Education=factor(Education,levels=c("None","GS","MS","HS","Postsec"))) %>%
-#   mutate(educ=as.numeric(as.character(id)))
-#
-#
-# implied_share_0<-results_all %>%
-#   mutate(prob_zero_92=pnorm(0, mean = d0, sd = sigma),
-#          prob_zero_02=pnorm(0, mean = d1, sd = sigma),
-#          prob_zero_11=pnorm(0, mean = d2, sd = sigma)) %>%
-#   group_by(Education) %>%
-#   summarise(sigma=mean(sigma),
-#             prob_zero_92=mean(prob_zero_92),
-#             prob_zero_02=mean(prob_zero_02),
-#             prob_zero_11=mean(prob_zero_11)
-#             )
-#
-# implied_share_0_log<-results_lognormal %>%
-#   mutate(prob_zero_92=0,
-#          prob_zero_02=0,
-#          prob_zero_11=0) %>%
-#   group_by(Education) %>%
-#   summarise(sigma=mean(sigma),
-#             prob_zero_92=mean(prob_zero_92),
-#             prob_zero_02=mean(prob_zero_02),
-#             prob_zero_11=mean(prob_zero_11)
-#   )
-#
-# implied_share_0_u<-results_u %>%
-#   mutate(prob_zero_92=-min(0,(d0-sigma/2))/sigma,
-#          prob_zero_02=-min(0,(d1-sigma/2))/sigma,
-#          prob_zero_11=-min(0,(d2-sigma/2))/sigma) %>%
-#   group_by(Education) %>%
-#   summarise(sigma=mean(sigma),
-#             prob_zero_92=mean(prob_zero_92),
-#             prob_zero_02=mean(prob_zero_02),
-#             prob_zero_11=mean(prob_zero_11)
-#   )
-#
-# print(xtable(implied_share_0), include.rownames = FALSE)
-# print(xtable(implied_share_0_u), include.rownames = FALSE)
-# print(xtable(implied_share_0_log), include.rownames = FALSE)
-#
-# setwd(wd_output)
-# writeLines(print(xtable(implied_share_0), include.rownames = FALSE),"05_null_probability_normal.txt")
-# writeLines(print(xtable(implied_share_0_u), include.rownames = FALSE),"05_null_probability_uniform.txt")
-# writeLines(print(xtable(implied_share_0_log), include.rownames = FALSE),"05_null_probability_lognormal.txt")
-
+# =====================================================================
+# Appendix Table A12 — Fraction of Roma-background individuals with a null
+#                       probability of Roma self-reporting (by distributional model)
+# Produces:  output/Table A12.tex
+# Inputs:    results_parallel.rds (Normal cost model bootstrap draws),
+#            results_parallel_lognormal.rds (Lognormal model),
+#            results_uniform.rds (Uniform model)
+# Summary:   For each structural cost-heterogeneity model (Normal / Uniform /
+#            Lognormal) and education group, computes the bootstrap-mean share of
+#            individuals whose estimated probability of self-reporting Roma is
+#            zero (i.e. who always pass), in 1992 / 2002 / 2011. Stacks the three
+#            models into a single 3-panel LaTeX tabular.
+# =====================================================================
 
 # --- Load Structural Estimation Results ---
 
@@ -219,9 +134,6 @@ print(xtable(implied_share_0_u), include.rownames = FALSE)
 print(xtable(implied_share_0_log), include.rownames = FALSE)
 
 setwd(wd_output)
-# writeLines(print(xtable(implied_share_0), include.rownames = FALSE),"05_null_probability_normal.txt")
-# writeLines(print(xtable(implied_share_0_u), include.rownames = FALSE),"05_null_probability_uniform.txt")
-# writeLines(print(xtable(implied_share_0_log), include.rownames = FALSE),"05_null_probability_lognormal.txt")
 
 
 #3-panel table: fraction with null probability (Table tab.zero)----

@@ -1,63 +1,44 @@
-# Produces Table 4: Beliefs Regarding Roma Changes in Ethnic Identification and Education
+# =====================================================================
+# Table 04 — Survey beliefs about education and Roma identity passing
+# Produces:  output/Table 04.tex
+# Inputs:    survey_no_priming.csv / survey_priming.csv (anonymized survey waves,
+#            built by 00_anonymize_survey.R; carry per-row locality `roma` share
+#            and a `rural` flag)
+# Summary:   Tabulates the share of respondents who believe reported non-Roma are
+#            less / equally / more educated than reported Roma (item II13), for the
+#            full sample and broken out by priming arm, attentiveness, rural/urban,
+#            and whether the locality is above/below the in-sample median Roma share.
+#            Each cell is a percentage with the underlying observation count.
+# =====================================================================
 
-# --- Load locality-level Roma population shares ---
+# ---- Load anonymized survey waves ----
+# Two files correspond to the experiment's two arms (no-priming / priming). They
+# already carry the per-row locality `roma` share and a `rural` flag (derived in
+# 00_anonymize_survey.R); survey items are stored as numeric codes.
+setwd(wd_data_survey_processed)
+data1 <- fread("survey_no_priming.csv") %>% mutate(priming = "No Priming")
+data2 <- fread("survey_priming.csv")    %>% mutate(priming = "Priming")
+data_master <- bind_rows(data2, data1)
 
-setwd(wd_data_11_other)
-# siruta3_roma_survey.csv: locality-level share of Roma residents, used to split
-# survey respondents into high- vs. low-Roma-share localities
-roma_share <- fread( "siruta3_roma_survey.csv")
-
-# --- Load survey data from two experimental arms ---
-
-setwd(wd_data_survey)
-# baza_Link1.sav / baza_Link2.sav: incentivized survey on beliefs about Roma passing;
-# Link1 = no priming arm, Link2 = priming arm (respondents primed about Roma identity)
-data1<-read_sav("baza_Link1.sav") %>% mutate(priming="No Priming")
-data2<-read_sav("baza_Link2.sav") %>% mutate(priming="Priming")
-data_master<-bind_rows(data1,data2)
-
-
-# Re-stack with priming arm first (Link2), then decode labelled SPSS variables to strings
-data_master <- bind_rows(data2, data1) %>%
-  # decode den_loc -> town, jud (labelled -> character, uppercased)
-  mutate(
-    # town: locality name from SPSS value labels, uppercased for merging with census locality file
-    town = toupper(as.character(as_factor(den_loc))),
-    # jud: county name from SPSS value labels, uppercased for merging
-    jud  = toupper(as.character(as_factor(jud)))
-  )
-
-# Uppercase town and county in the Roma-share lookup table to match the survey strings
-roma_share <- roma_share %>%
-  mutate(
-    town = toupper(as.character(town)),
-    jud  = toupper(as.character(jud))
-  )
-
-# m:1 merge on (town, jud); Stata: drop if _m==2 (keep master rows only).
-# Stata asserts town=="RURAL" <=> unmatched-from-master (_m==1).
+# roma_above_median_insample: above in-sample median of `roma` (locality share)
 data_master <- data_master %>%
-  left_join(roma_share, by = c("town", "jud")) %>%
-  # roma_above_median_insample: above in-sample median of `roma` (locality share)
-  # Split respondents at the in-sample median so the two groups are balanced
   mutate(roma_above_median_insample = as.integer(roma > median(roma, na.rm = TRUE)))
 
-###
-# --- Construct indicator variables for table rows ---
+# ---- Build outcome and subgroup indicators ----
+# II13 is the key survey item: respondent's belief about whether reported non-Roma
+# are less (1) / equally (2) / more (3) educated than reported Roma. II15==3 flags
+# "attentive" respondents; `rural` (precomputed) flags rural localities.
 data_master <- data_master %>%
   mutate(
-    # II13: survey question asking whether non-Roma are less (1), equally (2), or more (3)
-    # educated than Roma — the core belief outcome variable
     main_less = as.integer(II13 == 1),
     main_same = as.integer(II13 == 2),
     main_more = as.integer(II13 == 3),
-    attentive = as.integer(II15 == 3),   # "Persoane rome, indif. de etnia decl"
-    # rural: respondents from localities recorded as "RURAL" in the survey geography
-    rural     = as.integer(town == "RURAL")
+    attentive = as.integer(II15 == 3)    # "Persoane rome, indif. de etnia decl"
   )
 
-# row_stats: helper to compute the three belief shares and sample size for any subsample;
-# each statistic is pre-formatted for direct LaTeX insertion
+# ---- Compute table rows (full sample and subgroups) ----
+# row_stats: for a (possibly filtered) subset, return the percentage of respondents
+# choosing less/same/more on II13 and the number of non-missing responses (N).
 row_stats <- function(d) {
   d %>%
     summarise(
@@ -68,8 +49,6 @@ row_stats <- function(d) {
     )
 }
 
-# --- Compute statistics for each subgroup used in Table 4 ---
-# Each entry corresponds to one row in the published table
 rows <- list(
   "Full Sample"              = row_stats(data_master),
   "Priming"                  = row_stats(filter(data_master, priming == "Priming")),
@@ -82,15 +61,16 @@ rows <- list(
   "Low Share Roma Locality"  = row_stats(filter(data_master, roma_above_median_insample == 0))
 )
 
-# Assemble one LaTeX table row per subgroup: "Label & less% & same% & more% & N \\"
+# ---- Assemble and write the LaTeX table ----
+# Format each named row into a LaTeX tabular line: label & less & same & more & N.
 main_body <- vapply(names(rows), function(nm) {
   r <- rows[[nm]]
   sprintf("%s & %s & %s & %s & %s \\\\", nm, r$less, r$same, r$more, r$n)
 }, character(1))
 
-# --- Build the complete LaTeX table string ---
-# Manually constructed because the table layout (multicolumn header, addlinespace groupings)
-# is not easily expressible via modelsummary or kbl
+# Build the full tabular: multi-line column header describing the II13 question,
+# then the formatted rows grouped (full sample, then each subgroup split) with
+# spacing rules between groups.
 tab2 <- c(
   "\\begin{tabular}{lcccc}",
   "\\toprule",
@@ -116,7 +96,5 @@ tab2 <- c(
   "\\end{tabular}"
 )
 
-# --- Write output ---
-# Output: output/Table 04.tex — Table 4 in the paper
 setwd(wd_output)
 writeLines(tab2, file.path(wd_output, "Table 04.tex"))

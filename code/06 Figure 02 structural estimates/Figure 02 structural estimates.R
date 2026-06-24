@@ -12,13 +12,13 @@ results1<-readRDS("results_parallel.rds")
 results1<-results1 %>%
   # Map numeric education-years (id) to readable labels matching the harmonised EDUC factor.
   # id values correspond to years_1992 / years_2011 bins: 0=no schooling, 4=primary,
-  # 8-10=middle school (gym), 12-13=high school, 14-16=post-secondary/higher.
+  # 8-10=middle school (gym), 12-13=High School or Vocational, 14-16=post-secondary/higher.
   mutate(Education=case_when(id==0 ~ "None",
                              id==4 ~ "Primary",
                              id %in% 8:10  ~ "Middle School",
-                             id %in% 12:13 ~ "High School",
-                             id %in% 14:16 ~ "Postsec")) %>%
-  mutate(Education=factor(Education,levels=c("None","Primary","Middle School","High School","Postsec"))) %>%
+                             id %in% 12:13 ~ "High School or Vocational",
+                             id %in% 14:16 ~ "Postsec.")) %>%
+  mutate(Education=factor(Education,levels=c("None","Primary","Middle School","High School or Vocational","Postsec."))) %>%
   # Retain id as a numeric variable for ordering and merging on education years
   mutate(educ=as.numeric(as.character(id))) %>%
   # Tag this block of rows as the Normal distributional assumption for cost heterogeneity
@@ -30,9 +30,9 @@ results2<-results2 %>%
   mutate(Education=case_when(id==0 ~ "None",
                              id==4 ~ "Primary",
                              id %in% 8:10  ~ "Middle School",
-                             id %in% 12:13 ~ "High School",
-                             id %in% 14:16 ~ "Postsec")) %>%
-  mutate(Education=factor(Education,levels=c("None","Primary","Middle School","High School","Postsec"))) %>%
+                             id %in% 12:13 ~ "High School or Vocational",
+                             id %in% 14:16 ~ "Postsec.")) %>%
+  mutate(Education=factor(Education,levels=c("None","Primary","Middle School","High School or Vocational","Postsec."))) %>%
   mutate(educ=as.numeric(as.character(id))) %>%
   # Tag this block of rows as the Uniform distributional assumption
   mutate(Model="Uniform")
@@ -43,9 +43,9 @@ results3<-results3 %>%
   mutate(Education=case_when(id==0 ~ "None",
                              id==4 ~ "Primary",
                              id %in% 8:10  ~ "Middle School",
-                             id %in% 12:13 ~ "High School",
-                             id %in% 14:16 ~ "Postsec")) %>%
-  mutate(Education=factor(Education,levels=c("None","Primary","Middle School","High School","Postsec"))) %>%
+                             id %in% 12:13 ~ "High School or Vocational",
+                             id %in% 14:16 ~ "Postsec.")) %>%
+  mutate(Education=factor(Education,levels=c("None","Primary","Middle School","High School or Vocational","Postsec."))) %>%
   mutate(educ=as.numeric(as.character(id))) %>%
   # Tag this block of rows as the Lognormal distributional assumption
   mutate(Model="Lognormal")
@@ -84,7 +84,7 @@ results_sum<-results_all %>%
 results_sum<-rbindlist(list(results_sum,data.frame(Education=unique(results_sum$Education),d2=1,Model="Reported")),fill=T) %>%
   # Order factor levels so "Reported" appears first in legend and plot
   mutate(Model=factor(Model,
-                     levels=c("Reported","Lognormal","Normal","Uniform")))
+                      levels=c("Reported","Lognormal","Normal","Uniform")))
 
 
 # --- Section 3: Panel A — Ratio of Estimated to Reported Roma by Education (g1) ---
@@ -134,7 +134,7 @@ data_all_2011<-read_sample(filename) %>%
 
 # Read the full data and correct EDUC for young adults (age 18-25 in 2011) whose
 # SCU code suggests continued schooling that was not yet reflected in EDUC:
-# SCU <= 65 maps to post-secondary enrolment; SCU <= 92 maps to general high school.
+# SCU <= 65 maps to post-secondary enrolment; SCU <= 92 maps to general High School or Vocational.
 # This correction prevents misclassification of those who have not yet completed their
 # terminal degree at the time of the census.
 data_all_2011<-read_data(filename,data_all_2011) %>%
@@ -156,11 +156,11 @@ data_all_2011<-data_all_2011 %>%
   # Collapse the EDUC factor into the same coarsened numeric bins (years of schooling)
   # used in the structural model to allow merging with results_sum
   mutate(educ=case_when(EDUC=="No formal" ~ 0,
-                          EDUC=="Primary" ~ 4,
-                          EDUC=="Gym" ~ 8,
-                          EDUC %in% c("Higher Long","Higher Short") ~ 16,
-                          EDUC=="Sub 10" ~ NA_real_,
-                          TRUE ~ 12))
+                        EDUC=="Primary" ~ 4,
+                        EDUC=="Gym" ~ 8,
+                        EDUC %in% c("Higher Long","Higher Short") ~ 16,
+                        EDUC=="Sub 10" ~ NA_real_,
+                        TRUE ~ 12))
 
 # Diagnostic: mean education years by Roma status in 2011 —
 # used to check whether Roma and non-Roma populations differ in education composition
@@ -218,18 +218,18 @@ totals<-data_all_2011_sum_long %>%
 # Merge totals back and build legend labels that include the population total
 data_all_2011_sum_long<-data_all_2011_sum_long %>%
   left_join(totals) %>%
-   mutate(name=case_when(name=="Reported" ~
+  mutate(name=case_when(name=="Reported" ~
                           paste0("Reported (",
-                          f_dec(totals/1000), "k)"),
+                                 f_dec(totals/1000), "k)"),
                         name=="Estimated" ~
                           paste0(Model," (",
-                          f_dec(totals/1000), "k)")
-                     ))
+                                 f_dec(totals/1000), "k)")
+  ))
 
 # Fix factor level order for legend consistency with the paper's presentation order
 data_all_2011_sum_long<-data_all_2011_sum_long %>%
   mutate(name=factor(name,
-         levels=c("Reported (384k)","Lognormal (617k)","Normal (660k)","Uniform (610k)")))
+                     levels=c("Reported (384k)","Lognormal (617k)","Normal (660k)","Uniform (610k)")))
 
 
 # --- Section 6: Panel B — Absolute Estimated Roma Counts by Education (g2) ---
@@ -254,23 +254,13 @@ g2<-ggplot(data_all_2011_sum_long,aes(x=Education,y=value,color=name))+
   xlab("Educational Attainment")+
   ylab("Estimated Roma Heritage (Thousands)")+
   # scale_x_continuous(breaks=0:10)+
-    scale_x_discrete(labels = function(x) str_wrap(x, width = 8))+
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 8))+
   # Display y-axis in thousands (scale = 1e-3) with no decimals
   scale_y_continuous(breaks=seq(from = 0, to = 1000000, by = 20000),
                      labels=unit_format(unit = "", scale = 1e-3,accuracy=1.0),
-                     )+
+  )+
   labs(color=str_wrap("Estimate:",width=8))
 g2
-
-# setwd(wd_output)
-# pdf("05_Figure_structural_population.pdf",width=10,height=5)
-# g2
-# dev.off()
-#
-# setwd(wd_output)
-# pdf("05_Figure_structural_combined_3.pdf",width=12,height=8)
-# grid.arrange(g1, g1b, g2, ncol=3,widths = c(1/3,1/3,1/3))
-# dev.off()
 
 # --- Output: Save Figure 02 (two-panel, 10x5 inches) ---
 # Left panel (g1): ratio of estimated-to-reported Roma share by education and model.

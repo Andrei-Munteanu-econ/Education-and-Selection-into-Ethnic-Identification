@@ -159,7 +159,7 @@ variables_p3 <- c('fit_years_2011'='Schooling Yrs',
 #   Fixed effects: commune x birth-year (SIRSUP_baseline^AA_baseline) + census
 #   SE cluster:    commune (SIRSUP_baseline)
 build_het_table <- function(data_reg) {
-
+  
   ## Panel 1: gender and parental education ----
   # Columns 1-2: male vs. female subsamples, no parental controls.
   model_sex_92_iv_m<-feols(ROMA_2011~1|SIRSUP_baseline^AA_baseline+census|years_2011~years_baseline,
@@ -190,7 +190,7 @@ build_het_table <- function(data_reg) {
   model_pop_educ_92_iv_l<-feols(ROMA_2011~1|SIRSUP_baseline^AA_baseline+census|years_2011~years_baseline,
                                 data=data_reg %>% filter(years_POP_baseline<8),
                                 cluster=~SIRSUP_baseline)
-
+  
   ## Panel 2: other individual and family characteristics ----
   # Columns 1-2: inter-commune migrants vs. non-migrants between baseline and 2011.
   # Tests whether the effect operates through geographic assimilation.
@@ -214,7 +214,7 @@ build_het_table <- function(data_reg) {
   model_rel_92_iv_neo<-feols(ROMA_2011~1|SIRSUP_baseline^AA_baseline+census|years_2011~years_baseline,
                              data=data_reg %>% filter(!REL_baseline %in% c(10)),
                              cluster=~SIRSUP_baseline)
-
+  
   ## Panel 3: baseline age and household head status ----
   # GRUD_baseline: household head indicator (1 = head of household at baseline).
   # Columns 1-2: head vs. non-head at baseline.
@@ -241,7 +241,7 @@ build_het_table <- function(data_reg) {
   model_old_baseline<-feols(ROMA_2011~1|SIRSUP_baseline^AA_baseline+census|years_2011~years_baseline,
                             data=data_reg %>% filter(AGE_baseline>=41),
                             cluster=~SIRSUP_baseline)
-
+  
   ## Assemble the three panels into a single tabular ----
   # Panel 1 (8 data columns).
   f1 <- fstat_row(model_sex_92_iv_m, model_sex_92_iv_f,
@@ -257,7 +257,7 @@ build_het_table <- function(data_reg) {
                         "m7"=model_pop_educ_92_iv_h,
                         "m8"=model_pop_educ_92_iv_l),
                    f1, variables, "lcccccccc")
-
+  
   # Panel 2 (6 data columns; the Roma-spouse split is omitted -- covered by the
   # marriage tables). The 6 columns are right-aligned inside the 8-column master
   # tabular, occupying data columns 3-8.
@@ -274,7 +274,7 @@ build_het_table <- function(data_reg) {
   # Pad each row with two leading empty data cells (cols 1-2) so the 6 columns
   # sit in data columns 3-8 (right-aligned within the 8-column master tabular).
   body2 <- sub("&", "& & &", body2, fixed = TRUE)
-
+  
   # Panel 3 (7 models shown in data columns 2-8): pad each row with a leading
   # empty data cell so it aligns with the 8-column master tabular.
   f3 <- fstat_row(model_head_baseline, model_nhead_baseline, model_head_always,
@@ -289,7 +289,7 @@ build_het_table <- function(data_reg) {
                         "m7"=model_old_baseline),
                    f3, variables_p3, "lccccccc")
   body3 <- sub("&", "& &", body3, fixed = TRUE)
-
+  
   # LaTeX column headers for each panel. Manually constructed so each panel can
   # carry its own descriptive header inside the shared tabular environment.
   p1_header <- c(
@@ -298,7 +298,7 @@ build_het_table <- function(data_reg) {
     "& \\multicolumn{2}{c}{Sex} & \\multicolumn{2}{c}{Sex \\& Parental Educ.} & \\multicolumn{2}{c}{Mom Education} & \\multicolumn{2}{c}{Dad Education}\\\\",
     "& Male & Female & Male & Female & $\\geq 8$ Yrs & $<8$ Yrs & $\\geq 8$ Yrs & $<8$ Yrs \\\\",
     "& (1) & (2) & (3) & (4) & (5) & (6) & (7) & (8) \\\\")
-
+  
   # Panel 2 header: 6 columns right-aligned in data columns 3-8 via two leading
   # empty cells.
   p2_header <- c(
@@ -307,14 +307,14 @@ build_het_table <- function(data_reg) {
     "& & & \\multicolumn{2}{c}{Migrant} & \\multicolumn{2}{c}{Native Language} & \\multicolumn{2}{c}{Orthodox Religion}\\\\",
     "& & & Yes & No & Romani & Non-Romani & Yes & No \\\\",
     "& & & (1) & (2) & (3) & (4) & (5) & (6) \\\\")
-
+  
   p3_header <- c(
     "& & \\multicolumn{7}{c}{Panel 3: Baseline Age and Household Head Status}\\\\",
     "& & \\multicolumn{7}{c}{\\textit{Dependent Variable: Reported Roma Ethnicity (2011)}}\\\\",
     "& & Head & Not Head & Head & 10-20 y.o. & 20s & 30s & 40+ y.o.\\\\",
     "& & Baseline & Baseline & Always & Baseline & Baseline & Baseline & Baseline\\\\",
     "& & (1) & (2) & (3) & (4) & (5) & (6) & (7) \\\\")
-
+  
   # Stitch the three panels together into a single LaTeX tabular: outer rules at
   # top and bottom, \midrule between each panel header and its body, and between
   # consecutive panels. The result is a self-contained tabular (no \begin{table}).
